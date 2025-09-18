@@ -15,11 +15,15 @@ import {
 } from "react-native";
 import KakaoMap from "../components/KakaoMap";
 import { SearchResult } from "../types/search";
+import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
+import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useKakaoSearch } from "../hooks/useKakaoSearch";
 import { styles } from "./Home.styles";
 
 export default function Home() {
+  const selectedPlaceId = usePlaceStore((s) => s.selectedPlaceId);
+  const setSelectedPlaceId = usePlaceStore((s) => s.setSelectedPlaceId);
   const { location, error: locationError, loading: locationLoading } = useCurrentLocation();
   const {
     searchQuery,
@@ -66,6 +70,9 @@ export default function Home() {
 
   const handleSelectResult = (item: SearchResult) => {
     setSelectedPlace({ latitude: item.latitude, longitude: item.longitude });
+    if (item.id) {
+      setSelectedPlaceId(item.id);
+    }
     clearSearchResults();
     Animated.timing(animation, {
       toValue: 0,
@@ -144,12 +151,17 @@ export default function Home() {
           onMapCenterChange={(lat, lng) =>
             setMapCenter({ latitude: lat, longitude: lng })
           }
+          onMarkerPress={(id) => id && setSelectedPlaceId(id)}
         />
       ) : (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0000ff" />
           <Text>지도를 불러오는 중입니다...</Text>
         </View>
+      )}
+
+      {selectedPlaceId && (
+        <PlaceDetailPanel placeId={selectedPlaceId} />
       )}
     </SafeAreaView>
   );

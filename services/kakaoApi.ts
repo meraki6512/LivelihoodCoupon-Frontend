@@ -19,6 +19,7 @@ export const searchKakaoPlaces = async (
 
     if (data.documents && data.documents.length > 0) {
       return data.documents.map((doc: any) => ({
+        id: String(doc.id),
         latitude: parseFloat(doc.y),
         longitude: parseFloat(doc.x),
         place_name: doc.place_name,

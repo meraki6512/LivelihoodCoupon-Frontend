@@ -61,6 +61,13 @@
               const infowindow = new kakao.maps.InfoWindow({ content: '<div style="padding:5px;font-size:12px;">' + markerData.place_name + '</div>' });
               kakao.maps.event.addListener(marker, 'mouseover', function() { infowindow.open(map, marker); });
               kakao.maps.event.addListener(marker, 'mouseout', function() { infowindow.close(); });
+              kakao.maps.event.addListener(marker, 'click', function() {
+                if (markerData.id) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'marker_press', id: markerData.id
+                  }));
+                }
+              });
               return marker;
             });
             clusterer.addMarkers(kakaoMarkers);

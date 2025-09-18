@@ -87,13 +87,13 @@ export default function Home() {
 
   const renderWebLayout = () => (
     <View style={webStyles.container}>
-      <Header 
-        searchQuery={searchQuery} 
-        setSearchQuery={setSearchQuery} 
-        onSearch={handleSearch} 
+      <Header
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
       />
       <View style={webStyles.mainContainer}>
-        <SideMenu 
+        <SideMenu
           isOpen={isMenuOpen}
           searchResults={searchResults}
           onSelectResult={handleSelectResult}
@@ -101,9 +101,9 @@ export default function Home() {
           errorMsg={errorMsg}
           onToggle={() => setIsMenuOpen(!isMenuOpen)}
           style={{ transform: [{ translateX: sideMenuAnimation }] }}
-          searchQuery={searchQuery} 
-          setSearchQuery={setSearchQuery} 
-          onSearch={handleSearch} 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={handleSearch}
         />
         <View style={webStyles.mapContainer}>
           {mapCenter ? (

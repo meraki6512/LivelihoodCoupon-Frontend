@@ -1,4 +1,9 @@
+<<<<<<<< HEAD:components/kakaoMapWebViewSource.ts
 export const kakaoMapHtml = `<!DOCTYPE html>
+========
+export const kakaoMapWebViewHtml = `
+<!DOCTYPE html>
+>>>>>>>> 6781fd0fdfc3c06bf3d7cee35d66b8b2f85e24d2:components/kakaoMapWebView.ts
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

@@ -58,20 +58,12 @@ const WebKakaoMap = ({
           const infowindow = new window.kakao.maps.InfoWindow({
             content: `<div style="padding:5px;font-size:12px;">${markerData.place_name}</div>`,
           });
-          window.kakao.maps.event.addListener(
-            marker,
-            "mouseover",
-            function () {
-              infowindow.open(map, marker);
-            }
-          );
-          window.kakao.maps.event.addListener(
-            marker,
-            "mouseout",
-            function () {
-              infowindow.close();
-            }
-          );
+          window.kakao.maps.event.addListener(marker, "mouseover", function () {
+            infowindow.open(map, marker);
+          });
+          window.kakao.maps.event.addListener(marker, "mouseout", function () {
+            infowindow.close();
+          });
           window.kakao.maps.event.addListener(marker, "click", function () {
             if (onMarkerPress) onMarkerPress(markerData.id);
           });
@@ -128,11 +120,19 @@ const WebKakaoMap = ({
   }, [markers]);
 
   if (scriptError) {
-    return <View style={styles.webMapContainer}><Text>Error loading Kakao Map: {scriptError.toString()}</Text></View>;
+    return (
+      <View style={styles.webMapContainer}>
+        <Text>Error loading Kakao Map: {scriptError.toString()}</Text>
+      </View>
+    );
   }
 
   if (!isLoaded) {
-    return <View style={styles.webMapContainer}><Text>Loading Kakao Map...</Text></View>;
+    return (
+      <View style={styles.webMapContainer}>
+        <Text>Loading Kakao Map...</Text>
+      </View>
+    );
   }
 
   return <div ref={mapRef} style={styles.webMapContainer} />;
@@ -228,7 +228,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
       ref={webViewRef} // Assign ref to WebView
       originWhitelist={["*"]}
       source={{ html: htmlContent }}
-      style={styles.webview}
+      style={[styles.webview, style]}
       javaScriptEnabled={true}
       domStorageEnabled={true}
       onLoad={() => console.log("WebView loaded successfully")}
@@ -239,7 +239,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
           if (data.type === "map_idle" && onMapCenterChange) {
             onMapCenterChange(data.latitude, data.longitude);
           }
-          if (data.type === 'marker_press' && onMarkerPress) {
+          if (data.type === "marker_press" && onMarkerPress) {
             onMarkerPress(data.id);
           }
           if (data.type === 'map_api_ready') {

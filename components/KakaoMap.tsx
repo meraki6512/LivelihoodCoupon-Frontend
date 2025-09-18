@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Platform, ViewStyle, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { KAKAO_MAP_JS_KEY } from "@env";
@@ -138,50 +138,82 @@ const WebKakaoMap = ({
   return <div ref={mapRef} style={styles.webMapContainer} />;
 };
 
+import { kakaoMapHtml } from "./kakaoMapWebViewSource";
+
 // 모바일 전용 Kakao Map 렌더링 로직 (WebView 사용)
-const MobileKakaoMap = ({
+const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   latitude,
   longitude,
   markers,
   onMapCenterChange,
   onMarkerPress,
-}: KakaoMapProps) => {
+}) => {
   const webViewRef = useRef<WebView>(null);
-  const [htmlContent, setHtmlContent] = useState<string | null>(null);
+  const markerLoadTimer = useRef<NodeJS.Timeout | null>(null);
+  const [isMapApiReady, setIsMapApiReady] = useState(false);
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
+  const [isInitialMarkersLoaded, setIsInitialMarkersLoaded] = useState(false);
 
-  useEffect(() => {
-    const loadHtmlContent = async () => {
-      try {
-        const html = require('./kakaoMapWebView.html');
-        let processedHtml = html.replace('KAKAO_MAP_JS_KEY_PLACEHOLDER', KAKAO_MAP_JS_KEY);
-        setHtmlContent(processedHtml);
-      } catch (error) {
-        console.error("Failed to load WebView HTML content:", error);
-        setHtmlContent("<h1>Error loading map content.</h1>");
-      }
-    };
-    loadHtmlContent();
-  }, []);
+  const htmlContent = useMemo(() => {
+    return kakaoMapHtml.replace(
+      "KAKAO_MAP_JS_KEY_PLACEHOLDER",
+      KAKAO_MAP_JS_KEY
+    );
+  }, [KAKAO_MAP_JS_KEY]);
 
-  // Effect to initialize map and update center/markers
+  // Effect to initialize map when API is ready and map is not yet initialized
   useEffect(() => {
     if (
       webViewRef.current &&
-      htmlContent && // Ensure HTML content is loaded
+      htmlContent &&
+      isMapApiReady &&
+      !isMapInitialized &&
       latitude !== undefined &&
       longitude !== undefined
     ) {
       const script = `initMap(${latitude}, ${longitude}); true;`;
       webViewRef.current.injectJavaScript(script);
+      setIsMapInitialized(true);
     }
-  }, [latitude, longitude, htmlContent]); // Re-run when latitude or longitude changes to re-initialize or set center
+  }, [isMapApiReady, isMapInitialized, latitude, longitude, htmlContent]);
 
+  // Effect to update map center when latitude/longitude props change after initialization
   useEffect(() => {
-    if (webViewRef.current && markers && htmlContent) {
-      const script = `updateMarkers(${JSON.stringify(markers)}); true;`;
+    if (
+      webViewRef.current &&
+      htmlContent &&
+      isMapInitialized &&
+      latitude !== undefined &&
+      longitude !== undefined
+    ) {
+      const script = `updateMapCenter(${latitude}, ${longitude}); true;`;
       webViewRef.current.injectJavaScript(script);
     }
-  }, [markers, htmlContent]);
+  }, [isMapInitialized, latitude, longitude, htmlContent]);
+
+  // Effect for updating markers when markers prop changes
+  useEffect(() => {
+    if (webViewRef.current && markers && htmlContent && isMapInitialized) {
+      if (!isInitialMarkersLoaded) {
+        markerLoadTimer.current = setTimeout(() => {
+          if (webViewRef.current) {
+            const script = `updateMarkers(${JSON.stringify(markers)}); true;`;
+            webViewRef.current.injectJavaScript(script);
+            setIsInitialMarkersLoaded(true);
+          }
+        }, 100);
+      } else {
+        const script = `updateMarkers(${JSON.stringify(markers)}); true;`;
+        webViewRef.current.injectJavaScript(script);
+      }
+    }
+
+    return () => {
+      if (markerLoadTimer.current) {
+        clearTimeout(markerLoadTimer.current);
+      }
+    };
+  }, [markers, htmlContent, isMapInitialized]);
 
   if (!htmlContent) {
     return (
@@ -204,11 +236,14 @@ const MobileKakaoMap = ({
       onMessage={(event) => {
         try {
           const data = JSON.parse(event.nativeEvent.data);
-          if (data.type === "center_changed" && onMapCenterChange) {
+          if (data.type === "map_idle" && onMapCenterChange) {
             onMapCenterChange(data.latitude, data.longitude);
           }
           if (data.type === 'marker_press' && onMarkerPress) {
             onMarkerPress(data.id);
+          }
+          if (data.type === 'map_api_ready') {
+            setIsMapApiReady(true);
           }
         } catch (e) {
           console.error("Failed to parse WebView message:", e);
@@ -216,7 +251,7 @@ const MobileKakaoMap = ({
       }}
     />
   );
-};
+});
 
 const KakaoMap: React.FC<KakaoMapProps> = (props) => {
   if (Platform.OS === "web") {

@@ -3,43 +3,7 @@ import { StyleSheet, Platform } from "react-native";
 export const styles = StyleSheet.create({
   safeAreaContainer: {
     flex: 1,
-    backgroundColor: "#f8f9fd",
-  },
-  headerContainer: {
-    alignItems: "center",
-    padding: 20,
-    paddingTop: Platform.OS === "android" ? 50 : 0,
-  },
-  text: {
-    fontSize: 24,
-    marginBottom: 20,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    width: "100%",
-    marginBottom: 10,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    borderColor: "#ddd",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginRight: 10,
-    backgroundColor: "#fff",
-  },
-  searchButton: {
-    backgroundColor: "#007bff",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 5,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  searchButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    backgroundColor: "white",
   },
   loadingIndicator: {
     marginVertical: 10,
@@ -91,5 +55,47 @@ export const styles = StyleSheet.create({
   },
   resultItemText: {
     fontSize: 16,
+  },
+  bottomSheetContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  bottomSheetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginBottom: 10,
+  },
+  bottomSheetTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ff385c',
+  },
+  searchResultItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  searchResultAddress: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginTop: 4,
+  },
+  noResultsText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#6c757d',
   },
 });

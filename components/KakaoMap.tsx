@@ -14,6 +14,7 @@ const WebKakaoMap = ({
   longitude,
   markers,
   onMapCenterChange,
+  onMarkerPress,
 }: KakaoMapProps) => {
   const { isLoaded, error: scriptError } = useKakaoMapScript();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -58,20 +59,15 @@ const WebKakaoMap = ({
           const infowindow = new window.kakao.maps.InfoWindow({
             content: `<div style="padding:5px;font-size:12px;">${markerData.place_name}</div>`,
           });
-          window.kakao.maps.event.addListener(
-            marker,
-            "mouseover",
-            function () {
-              infowindow.open(map, marker);
-            }
-          );
-          window.kakao.maps.event.addListener(
-            marker,
-            "mouseout",
-            function () {
-              infowindow.close();
-            }
-          );
+          window.kakao.maps.event.addListener(marker, "mouseover", function () {
+            infowindow.open(map, marker);
+          });
+          window.kakao.maps.event.addListener(marker, "mouseout", function () {
+            infowindow.close();
+          });
+          window.kakao.maps.event.addListener(marker, "click", function () {
+            if (onMarkerPress) onMarkerPress(markerData.id);
+          });
           return marker;
         });
         clusterer.addMarkers(kakaoMarkers);
@@ -114,6 +110,9 @@ const WebKakaoMap = ({
           window.kakao.maps.event.addListener(marker, "mouseout", function () {
             infowindow.close();
           });
+          window.kakao.maps.event.addListener(marker, "click", function () {
+            if (onMarkerPress) onMarkerPress(markerData.id);
+          });
           return marker;
         });
         clustererInstance.current.addMarkers(kakaoMarkers);
@@ -122,11 +121,19 @@ const WebKakaoMap = ({
   }, [markers]);
 
   if (scriptError) {
-    return <View style={styles.webMapContainer}><Text>Error loading Kakao Map: {scriptError.toString()}</Text></View>;
+    return (
+      <View style={styles.webMapContainer}>
+        <Text>Error loading Kakao Map: {scriptError.toString()}</Text>
+      </View>
+    );
   }
 
   if (!isLoaded) {
-    return <View style={styles.webMapContainer}><Text>Loading Kakao Map...</Text></View>;
+    return (
+      <View style={styles.webMapContainer}>
+        <Text>Loading Kakao Map...</Text>
+      </View>
+    );
   }
 
   return <div ref={mapRef} style={styles.webMapContainer} />;
@@ -146,7 +153,10 @@ const MobileKakaoMap = ({
   useEffect(() => {
     const loadHtmlContent = () => {
       try {
-        const processedHtml = kakaoMapWebViewHtml.replace('KAKAO_MAP_JS_KEY_PLACEHOLDER', KAKAO_MAP_JS_KEY);
+        const processedHtml = kakaoMapWebViewHtml.replace(
+          "KAKAO_MAP_JS_KEY_PLACEHOLDER",
+          KAKAO_MAP_JS_KEY
+        );
         setHtmlContent(processedHtml);
       } catch (error) {
         console.error("Failed to load WebView HTML content:", error);
@@ -199,6 +209,9 @@ const MobileKakaoMap = ({
           const data = JSON.parse(event.nativeEvent.data);
           if (data.type === "center_changed" && onMapCenterChange) {
             onMapCenterChange(data.latitude, data.longitude);
+          }
+          if (data.type === "marker_press" && onMarkerPress) {
+            onMarkerPress(data.id);
           }
         } catch (e) {
           console.error("Failed to parse WebView message:", e);

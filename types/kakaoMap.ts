@@ -1,6 +1,7 @@
 import { ViewStyle } from "react-native";
 
 export type MarkerData = {
+  id?: string;
   latitude: number;
   longitude: number;
   place_name: string;
@@ -12,4 +13,5 @@ export type KakaoMapProps = {
   style?: ViewStyle;
   markers?: MarkerData[];
   onMapCenterChange?: (latitude: number, longitude: number) => void;
+  onMarkerPress?: (placeId?: string) => void;
 };

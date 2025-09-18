@@ -9,7 +9,7 @@ declare global {
 
 export const useKakaoMapScript = () => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<Event | string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (window.kakao && window.kakao.maps) {
@@ -18,7 +18,8 @@ export const useKakaoMapScript = () => {
     }
 
     const script = document.createElement("script");
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_JS_KEY}&libraries=services,clusterer&autoload=false`;
+    const sdkUrl = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_JS_KEY}&libraries=services,clusterer&autoload=false`;
+    script.src = sdkUrl;
     script.async = true;
 
     const onLoad = () => {
@@ -31,8 +32,10 @@ export const useKakaoMapScript = () => {
       });
     };
 
-    const onError = (e: Event | string) => {
-      setError(e);
+    const onError = () => {
+      const message = `Failed to load Kakao Maps SDK. Check appkey and allowed domains. url=${sdkUrl}`;
+      console.error(message);
+      setError(message);
     };
 
     script.addEventListener("load", onLoad);

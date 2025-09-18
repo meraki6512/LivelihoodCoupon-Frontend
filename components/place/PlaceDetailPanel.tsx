@@ -17,6 +17,11 @@ export default function PlaceDetailPanel({ placeId }: Props) {
       <View style={styles.container}>
         <ActivityIndicator size="small" />
         <Text style={styles.loadingText}>불러오는 중...</Text>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.closeButtonPrimary} onPress={() => setSelectedPlaceId(null)}>
+            <Text style={styles.closeButtonPrimaryText}>닫기</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -24,10 +29,12 @@ export default function PlaceDetailPanel({ placeId }: Props) {
   if (isError || !data) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>상세 정보를 불러오지 못했습니다.</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedPlaceId(null)}>
-          <Text style={styles.closeButtonText}>닫기</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorText}>정보 준비 중입니다.</Text>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.closeButtonPrimary} onPress={() => setSelectedPlaceId(null)}>
+            <Text style={styles.closeButtonPrimaryText}>닫기</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -42,9 +49,6 @@ export default function PlaceDetailPanel({ placeId }: Props) {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{data.placeName}</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={() => setSelectedPlaceId(null)}>
-          <Text style={styles.closeButtonText}>닫기</Text>
-        </TouchableOpacity>
       </View>
 
       <PlaceInfoRow label="주소" value={data.roadAddress || data.lotAddress} />
@@ -54,6 +58,12 @@ export default function PlaceDetailPanel({ placeId }: Props) {
       <TouchableOpacity onPress={() => openLink(data.placeUrl)}>
         <Text style={styles.link}>상세 보기</Text>
       </TouchableOpacity>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.closeButtonPrimary} onPress={() => setSelectedPlaceId(null)}>
+          <Text style={styles.closeButtonPrimaryText}>닫기</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -69,6 +79,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: Platform.OS === 'web' ? 1 : 0,
     borderColor: '#eee',
     padding: 16,
+    paddingBottom: 76,
     zIndex: 20,
   },
   header: {
@@ -85,6 +96,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: '#0a7',
   },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    padding: 16,
+    borderTopWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fff',
+  },
   closeButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -94,6 +115,18 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 12,
     color: '#333',
+  },
+  closeButtonPrimary: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonPrimaryText: {
+    fontSize: 16,
+    color: '#111',
+    fontWeight: '600',
   },
   loadingText: {
     marginTop: 8,

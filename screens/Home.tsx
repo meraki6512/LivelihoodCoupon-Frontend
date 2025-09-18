@@ -113,33 +113,27 @@ export default function Home() {
       </View>
 
       {searchResults.length > 0 && (
-        <Animated.View
-          style={[
-            styles.resultList,
-            {
-              transform: [
-                {
-                  translateY: animation.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [100, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <FlatList
-            data={searchResults}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => handleSelectResult(item)}>
-                <View style={styles.resultItem}>
-                  <Text style={styles.resultItemText}>{item.place_name}</Text>
-                </View>
-              </Pressable>
-            )}
-          />
-        </Animated.View>
+        <View style={styles.resultSheet}>
+          <View style={styles.resultSheetHeader}>
+            <Text style={styles.resultSheetTitle}>검색 결과 {searchResults.length}건</Text>
+            <TouchableOpacity style={styles.resultSheetClose} onPress={clearSearchResults}>
+              <Text>닫기</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.resultList}>
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => handleSelectResult(item)}>
+                  <View style={styles.resultItem}>
+                    <Text style={styles.resultItemText}>{item.place_name}</Text>
+                  </View>
+                </Pressable>
+              )}
+            />
+          </View>
+        </View>
       )}
 
       {mapCenter ? ( // mapCenter가 있을 때만 렌더링

@@ -1,3 +1,4 @@
+export const kakaoMapWebViewHtml = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -83,3 +84,4 @@
     </script>
   </body>
 </html>
+`;

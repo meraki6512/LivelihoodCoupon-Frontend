@@ -6,6 +6,7 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { styles } from "./KakaoMap.styles";
+import { kakaoMapWebViewHtml } from "./kakaoMapWebView";
 
 // 웹 전용 Kakao Map 렌더링 로직
 const WebKakaoMap = ({
@@ -137,15 +138,15 @@ const MobileKakaoMap = ({
   longitude,
   markers,
   onMapCenterChange,
+  style,
 }: KakaoMapProps) => {
   const webViewRef = useRef<WebView>(null);
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadHtmlContent = async () => {
+    const loadHtmlContent = () => {
       try {
-        const html = require('./kakaoMapWebView.html');
-        let processedHtml = html.replace('KAKAO_MAP_JS_KEY_PLACEHOLDER', KAKAO_MAP_JS_KEY);
+        const processedHtml = kakaoMapWebViewHtml.replace('KAKAO_MAP_JS_KEY_PLACEHOLDER', KAKAO_MAP_JS_KEY);
         setHtmlContent(processedHtml);
       } catch (error) {
         console.error("Failed to load WebView HTML content:", error);
@@ -188,7 +189,7 @@ const MobileKakaoMap = ({
       ref={webViewRef} // Assign ref to WebView
       originWhitelist={["*"]}
       source={{ html: htmlContent }}
-      style={styles.webview}
+      style={[styles.webview, style]}
       javaScriptEnabled={true}
       domStorageEnabled={true}
       onLoad={() => console.log("WebView loaded successfully")}

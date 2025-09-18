@@ -11,8 +11,8 @@ import {
   Animated,
   Keyboard,
   Platform,
-  SafeAreaView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import KakaoMap from "../components/KakaoMap";
 import { SearchResult } from "../types/search";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";

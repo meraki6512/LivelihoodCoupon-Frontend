@@ -42,7 +42,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const { height: SCREEN_HEIGHT } = Dimensions.get('window');
   const insets = useSafeAreaInsets();
   const USABLE_SCREEN_HEIGHT = SCREEN_HEIGHT - insets.bottom;
-  const BOTTOM_SHEET_HEIGHT = USABLE_SCREEN_HEIGHT * 0.4; // 40% of usable screen height
+  const BOTTOM_SHEET_HEIGHT = USABLE_SCREEN_HEIGHT * 0.5; // 50% of usable screen height
   const CLOSED_HEIGHT = 50; // Height of the visible handle when closed
 
   const bottomSheetAnimation = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT - CLOSED_HEIGHT)).current;

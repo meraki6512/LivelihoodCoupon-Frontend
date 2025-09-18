@@ -138,7 +138,7 @@ const WebKakaoMap = ({
   return <div ref={mapRef} style={styles.webMapContainer} />;
 };
 
-import { kakaoMapHtml } from "./kakaoMapWebViewSource";
+import { kakaoMapWebViewHtml } from "./kakaoMapWebViewSource";
 
 // 모바일 전용 Kakao Map 렌더링 로직 (WebView 사용)
 const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
@@ -147,6 +147,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   markers,
   onMapCenterChange,
   onMarkerPress,
+  style,
 }) => {
   const webViewRef = useRef<WebView>(null);
   const markerLoadTimer = useRef<NodeJS.Timeout | null>(null);
@@ -155,7 +156,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   const [isInitialMarkersLoaded, setIsInitialMarkersLoaded] = useState(false);
 
   const htmlContent = useMemo(() => {
-    return kakaoMapHtml.replace(
+    return kakaoMapWebViewHtml.replace(
       "KAKAO_MAP_JS_KEY_PLACEHOLDER",
       KAKAO_MAP_JS_KEY
     );

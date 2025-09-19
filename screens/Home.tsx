@@ -1,17 +1,16 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ActivityIndicator,
   TextInput,
   TouchableOpacity,
   FlatList,
-  Pressable, // Add Pressable
   Animated,
   Keyboard,
   Platform,
   SafeAreaView,
+  StyleSheet,
 } from "react-native";
 import KakaoMap from "../components/KakaoMap";
 import { SearchResult } from "../types/search";
@@ -19,7 +18,13 @@ import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useKakaoSearch } from "../hooks/useKakaoSearch";
-import { styles } from "./Home.styles";
+import { styles as mobileStyles } from "./Home.styles";
+import Header from "../components/layout/Header";
+import SideMenu from "../components/layout/SideMenu";
+import CustomBottomSheet from "../components/search/CustomBottomSheet";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const SIDEMENU_WIDTH = 350;
 
 export default function Home() {
   const selectedPlaceId = usePlaceStore((s) => s.selectedPlaceId);
@@ -35,22 +40,29 @@ export default function Home() {
     clearSearchResults,
   } = useKakaoSearch();
 
-  const [selectedPlace, setSelectedPlace] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const animation = useRef(new Animated.Value(0)).current;
+  const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const sideMenuAnimation = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+
   const [mapCenter, setMapCenter] = useState<{
     latitude: number;
     longitude: number;
-  } | null>(null); // 지도 중심 좌표 상태 추가
+  } | null>(null);
 
   useEffect(() => {
     if (location && !mapCenter) {
-      setSelectedPlace({ latitude: location.latitude, longitude: location.longitude });
       setMapCenter({ latitude: location.latitude, longitude: location.longitude });
     }
   }, [location, mapCenter]);
+
+  useEffect(() => {
+    Animated.timing(sideMenuAnimation, {
+      toValue: isMenuOpen ? 0 : -SIDEMENU_WIDTH,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [isMenuOpen]);
 
   const handleSearch = async () => {
     Keyboard.dismiss();
@@ -59,88 +71,102 @@ export default function Home() {
       return;
     }
     await performSearch(mapCenter.latitude, mapCenter.longitude);
-    if (searchResults.length > 0) {
-      Animated.timing(animation, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: false,
-      }).start();
-    }
+    setBottomSheetOpen(true); // Open bottom sheet after search
   };
 
   const handleSelectResult = (item: SearchResult) => {
-    setSelectedPlace({ latitude: item.latitude, longitude: item.longitude });
+    setMapCenter({ latitude: item.latitude, longitude: item.longitude });
     if (item.id) {
       setSelectedPlaceId(item.id);
     }
-    clearSearchResults();
-    Animated.timing(animation, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    setBottomSheetOpen(false); // Close bottom sheet after selecting a result
   };
 
   const isLoading = locationLoading || searchLoading;
   const errorMsg = locationError || searchError;
 
-  return (
-    <SafeAreaView style={styles.safeAreaContainer}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.text}>민생회복 소비쿠폰 사용처</Text>
-
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="장소를 검색하세요..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
-          />
-          <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-            <Text style={styles.searchButtonText}>검색</Text>
-          </TouchableOpacity>
-        </View>
-
-        {isLoading && (
-          <ActivityIndicator
-            size="small"
-            color="#0000ff"
-            style={styles.loadingIndicator}
-          />
-        )}
-        {errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
-      </View>
-
-      {searchResults.length > 0 && (
-        <View style={styles.resultSheet}>
-          <View style={styles.resultSheetHeader}>
-            <Text style={styles.resultSheetTitle}>검색 결과 {searchResults.length}건</Text>
-            <TouchableOpacity style={styles.resultSheetClose} onPress={clearSearchResults}>
-              <Text>닫기</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.resultList}>
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item, index) => index.toString()}
-              renderItem={({ item }) => (
-                <Pressable onPress={() => handleSelectResult(item)}>
-                  <View style={styles.resultItem}>
-                    <Text style={styles.resultItemText}>{item.place_name}</Text>
-                  </View>
-                </Pressable>
-              )}
+  const renderWebLayout = () => (
+    <View style={webStyles.container}>
+      <Header
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
+      />
+      <View style={webStyles.mainContainer}>
+        <SideMenu
+          isOpen={isMenuOpen}
+          searchResults={searchResults}
+          onSelectResult={handleSelectResult}
+          isLoading={searchLoading}
+          errorMsg={errorMsg}
+          onToggle={() => setIsMenuOpen(!isMenuOpen)}
+          style={{ transform: [{ translateX: sideMenuAnimation }] }}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onSearch={handleSearch}
+        />
+        <View style={webStyles.mapContainer}>
+          {mapCenter ? (
+            <KakaoMap
+              latitude={mapCenter.latitude}
+              longitude={mapCenter.longitude}
+              markers={searchResults}
+              onMapCenterChange={(lat, lng) =>
+                setMapCenter({ latitude: lat, longitude: lng })
+              }
+              onMarkerPress={(id) => id && setSelectedPlaceId(id)}
             />
-          </View>
+          ) : (
+            <View style={webStyles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0000ff" />
+              <Text>지도를 불러오는 중입니다...</Text>
+            </View>
+          )}
         </View>
+      </View>
+      {selectedPlaceId && (
+        <PlaceDetailPanel placeId={selectedPlaceId} />
+      )}
+    </View>
+  );
+
+  const renderMobileLayout = () => (
+    <SafeAreaView style={mobileStyles.safeAreaContainer}>
+      <Header
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
+      />
+      {isLoading && (
+        <ActivityIndicator
+          size="small"
+          color="#0000ff"
+          style={mobileStyles.loadingIndicator}
+        />
+      )}
+      {errorMsg && <Text style={mobileStyles.errorText}>{errorMsg}</Text>}
+
+      <CustomBottomSheet
+        isOpen={bottomSheetOpen}
+        onToggle={() => setBottomSheetOpen(!bottomSheetOpen)}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSearch={handleSearch}
+        searchResults={searchResults}
+        isLoading={searchLoading}
+        errorMsg={searchError}
+        onSelectResult={handleSelectResult}
+      />
+
+      {bottomSheetOpen && (
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: insets.bottom, backgroundColor: 'white', zIndex: 9 }} />
       )}
 
-      {mapCenter ? ( // mapCenter가 있을 때만 렌더링
+      {mapCenter ? (
         <KakaoMap
           latitude={mapCenter.latitude}
           longitude={mapCenter.longitude}
-          style={styles.mapFullScreen}
+          style={mobileStyles.mapFullScreen}
           markers={searchResults}
           onMapCenterChange={(lat, lng) =>
             setMapCenter({ latitude: lat, longitude: lng })
@@ -148,15 +174,36 @@ export default function Home() {
           onMarkerPress={(id) => id && setSelectedPlaceId(id)}
         />
       ) : (
-        <View style={styles.loadingContainer}>
+        <View style={mobileStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#0000ff" />
           <Text>지도를 불러오는 중입니다...</Text>
         </View>
       )}
-
       {selectedPlaceId && (
         <PlaceDetailPanel placeId={selectedPlaceId} />
       )}
     </SafeAreaView>
   );
+
+  return Platform.OS === 'web' ? renderWebLayout() : renderMobileLayout();
 }
+
+const webStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  mainContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  mapContainer: {
+    flex: 1,
+    height: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

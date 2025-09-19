@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+export const kakaoMapWebViewHtml = `<!DOCTYPE html>
 <html>
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=KAKAO_MAP_JS_KEY_PLACEHOLDER&libraries=services,clusterer"></script>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=KAKAO_MAP_JS_KEY_PLACEHOLDER&libraries=services,clusterer&autoload=false"></script>
     <style>
       body { margin: 0; padding: 0; height: 100%; }
       html { height: 100%; }
@@ -31,10 +31,10 @@
           minLevel: 7,
         });
 
-        kakao.maps.event.addListener(map, 'center_changed', function() {
+        kakao.maps.event.addListener(map, 'idle', function() {
           const latlng = map.getCenter();
           window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'center_changed',
+            type: 'map_idle',
             latitude: latlng.getLat(),
             longitude: latlng.getLng()
           }));
@@ -76,9 +76,19 @@
         }
       }
 
+      let isMapInitialized = false; // Flag to track if map is initialized
+
+      function mapApiReady() {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'map_api_ready'
+        }));
+      }
+
       window.onload = function() {
         if (typeof kakao !== 'undefined' && kakao.maps) {
-          // Initial map creation will be triggered from RN side
+          kakao.maps.load(function() {
+            mapApiReady();
+          });
         } else {
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'error',
@@ -90,3 +100,4 @@
     </script>
   </body>
 </html>
+`;

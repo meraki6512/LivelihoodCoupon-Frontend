@@ -105,7 +105,7 @@ export default function Home() {
 
   // 로딩 및 에러 상태 계산
   const isLoading = locationLoading || searchLoading;
-  const errorMsg = locationError || searchError;
+  const errorMsg = (locationError || searchError) ? String(locationError || searchError) : null;
 
   /**
    * 웹 레이아웃 렌더링

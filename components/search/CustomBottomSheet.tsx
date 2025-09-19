@@ -75,7 +75,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       return <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />;
     }
     if (errorMsg) {
-      return <Text style={styles.errorText}>{errorMsg}</Text>;
+      return <Text style={styles.errorText}>{String(errorMsg)}</Text>;
     }
     if (searchResults.length > 0) {
       return (

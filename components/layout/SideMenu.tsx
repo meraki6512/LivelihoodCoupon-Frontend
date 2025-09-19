@@ -71,7 +71,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
         />
       );
     }
-    return <Text style={styles.noResultText}>검색 결과가 없거나, 검색을 시작하세요.</Text>;
+    return <Text style={styles.noResultText}>검색어를 입력하고 검색 버튼을 눌러주세요.</Text>;
   };
 
   return (

@@ -24,11 +24,20 @@ import SideMenu from "../components/layout/SideMenu";
 import CustomBottomSheet from "../components/search/CustomBottomSheet";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// 사이드메뉴 너비 상수
 const SIDEMENU_WIDTH = 350;
 
+/**
+ * Home 컴포넌트
+ * 앱의 메인 화면으로, 지도와 검색 기능을 제공합니다.
+ * 웹과 모바일 플랫폼에 따라 다른 레이아웃을 렌더링합니다.
+ */
 export default function Home() {
+  // 전역 상태 관리
   const selectedPlaceId = usePlaceStore((s) => s.selectedPlaceId);
   const setSelectedPlaceId = usePlaceStore((s) => s.setSelectedPlaceId);
+  
+  // 현재 위치 및 검색 관련 훅
   const { location, error: locationError, loading: locationLoading } = useCurrentLocation();
   const {
     searchQuery,
@@ -40,22 +49,26 @@ export default function Home() {
     clearSearchResults,
   } = useKakaoSearch();
 
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
-  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
-  const sideMenuAnimation = useRef(new Animated.Value(0)).current;
-  const insets = useSafeAreaInsets();
+  // UI 상태 관리
+  const [isMenuOpen, setIsMenuOpen] = useState(true); // 사이드메뉴 열림/닫힘 상태
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false); // 모바일 하단 시트 상태
+  const sideMenuAnimation = useRef(new Animated.Value(0)).current; // 사이드메뉴 애니메이션
+  const insets = useSafeAreaInsets(); // 안전 영역 정보
 
+  // 지도 중심 좌표 상태
   const [mapCenter, setMapCenter] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
 
+  // 현재 위치가 로드되면 지도 중심을 설정
   useEffect(() => {
     if (location && !mapCenter) {
       setMapCenter({ latitude: location.latitude, longitude: location.longitude });
     }
   }, [location, mapCenter]);
 
+  // 사이드메뉴 애니메이션 처리
   useEffect(() => {
     Animated.timing(sideMenuAnimation, {
       toValue: isMenuOpen ? 0 : -SIDEMENU_WIDTH,
@@ -64,6 +77,10 @@ export default function Home() {
     }).start();
   }, [isMenuOpen]);
 
+  /**
+   * 검색 실행 핸들러
+   * 키보드를 닫고 현재 지도 중심 좌표를 기준으로 검색을 수행합니다.
+   */
   const handleSearch = async () => {
     Keyboard.dismiss();
     if (!mapCenter) {
@@ -71,27 +88,32 @@ export default function Home() {
       return;
     }
     await performSearch(mapCenter.latitude, mapCenter.longitude);
-    setBottomSheetOpen(true); // Open bottom sheet after search
+    setBottomSheetOpen(true); // 검색 후 하단 시트 열기
   };
 
+  /**
+   * 검색 결과 선택 핸들러
+   * 선택된 장소로 지도를 이동하고 상세 정보를 표시합니다.
+   */
   const handleSelectResult = (item: SearchResult) => {
     setMapCenter({ latitude: item.latitude, longitude: item.longitude });
     if (item.id) {
       setSelectedPlaceId(item.id);
     }
-    setBottomSheetOpen(false); // Close bottom sheet after selecting a result
+    setBottomSheetOpen(false); // 결과 선택 후 하단 시트 닫기
   };
 
+  // 로딩 및 에러 상태 계산
   const isLoading = locationLoading || searchLoading;
   const errorMsg = locationError || searchError;
 
+  /**
+   * 웹 레이아웃 렌더링
+   * 사이드메뉴와 지도를 나란히 배치하는 레이아웃
+   */
   const renderWebLayout = () => (
     <View style={webStyles.container}>
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
-      />
+      <Header />
       <View style={webStyles.mainContainer}>
         <SideMenu
           isOpen={isMenuOpen}
@@ -130,13 +152,13 @@ export default function Home() {
     </View>
   );
 
+  /**
+   * 모바일 레이아웃 렌더링
+   * 전체 화면 지도와 하단 시트를 사용하는 레이아웃
+   */
   const renderMobileLayout = () => (
     <SafeAreaView style={mobileStyles.safeAreaContainer}>
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
-      />
+      <Header />
       {isLoading && (
         <ActivityIndicator
           size="small"
@@ -185,9 +207,11 @@ export default function Home() {
     </SafeAreaView>
   );
 
+  // 플랫폼에 따라 적절한 레이아웃 렌더링
   return Platform.OS === 'web' ? renderWebLayout() : renderMobileLayout();
 }
 
+// 웹용 스타일 정의
 const webStyles = StyleSheet.create({
   container: {
     flex: 1,

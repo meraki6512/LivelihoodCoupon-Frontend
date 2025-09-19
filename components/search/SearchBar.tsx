@@ -1,12 +1,19 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
+/**
+ * SearchBar 컴포넌트의 Props 인터페이스
+ */
 interface SearchBarProps {
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onSearch: () => void;
+  searchQuery: string; // 현재 검색 쿼리
+  setSearchQuery: (query: string) => void; // 검색 쿼리 설정 핸들러
+  onSearch: () => void; // 검색 실행 핸들러
 }
 
+/**
+ * SearchBar 컴포넌트
+ * 검색 입력 필드와 검색 버튼을 제공하는 재사용 가능한 컴포넌트
+ */
 const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery, onSearch }) => {
   return (
     <View style={styles.searchContainer}>

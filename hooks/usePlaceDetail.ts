@@ -3,9 +3,11 @@ import { getPlaceDetailsById } from '../services/placeApi';
 import { PlaceDetail } from '../types/place';
 
 /**
- * PlaceDetailPanel 컴포넌트는 usePlaceDetail 훅을 호출하기만 하면 
- * 로딩 상태(isLoading), 에러 상태(isError), 데이터(data)를 알아서 받아볼 수 있는 등
- * 모든 비동기 로직이 훅 안에 캡슐화되어 있음
+ * 장소 상세 정보를 가져오는 커스텀 훅
+ * TanStack Query를 사용하여 장소 상세 정보를 캐싱하고 관리합니다.
+ * 
+ * @param placeId - 조회할 장소의 ID
+ * @returns TanStack Query의 결과 객체 (data, isLoading, isError 등)
  */
 export function usePlaceDetail(placeId: string | null) {
   return useQuery<PlaceDetail>({

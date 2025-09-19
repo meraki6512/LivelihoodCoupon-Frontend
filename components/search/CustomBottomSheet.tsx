@@ -16,18 +16,26 @@ import SearchBar from '../search/SearchBar';
 import { SearchResult } from '../../types/search';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+/**
+ * CustomBottomSheet 컴포넌트의 Props 인터페이스
+ */
 interface CustomBottomSheetProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onSearch: () => void;
-  searchResults: SearchResult[];
-  isLoading: boolean;
-  errorMsg: string | null;
-  onSelectResult: (item: SearchResult) => void;
+  isOpen: boolean; // 하단 시트 열림/닫힘 상태
+  onToggle: () => void; // 하단 시트 토글 핸들러
+  searchQuery: string; // 검색 쿼리
+  setSearchQuery: (query: string) => void; // 검색 쿼리 설정 핸들러
+  onSearch: () => void; // 검색 실행 핸들러
+  searchResults: SearchResult[]; // 검색 결과 목록
+  isLoading: boolean; // 로딩 상태
+  errorMsg: string | null; // 에러 메시지
+  onSelectResult: (item: SearchResult) => void; // 검색 결과 선택 핸들러
 }
 
+/**
+ * CustomBottomSheet 컴포넌트
+ * 모바일 레이아웃에서 사용되는 하단 시트로, 검색바와 검색 결과를 표시합니다.
+ * 애니메이션을 통해 열림/닫힘 상태를 처리합니다.
+ */
 const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   isOpen,
   onToggle,
@@ -39,14 +47,17 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   errorMsg,
   onSelectResult,
 }) => {
+  // 화면 크기 및 안전 영역 계산
   const { height: SCREEN_HEIGHT } = Dimensions.get('window');
   const insets = useSafeAreaInsets();
   const USABLE_SCREEN_HEIGHT = SCREEN_HEIGHT - insets.bottom;
-  const BOTTOM_SHEET_HEIGHT = USABLE_SCREEN_HEIGHT * 0.5; // 50% of usable screen height
-  const CLOSED_HEIGHT = 50; // Height of the visible handle when closed
+  const BOTTOM_SHEET_HEIGHT = USABLE_SCREEN_HEIGHT * 0.5; // 사용 가능한 화면 높이의 50%
+  const CLOSED_HEIGHT = 70; // 닫힌 상태에서 보이는 핸들 높이
 
+  // 하단 시트 애니메이션 값
   const bottomSheetAnimation = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT - CLOSED_HEIGHT)).current;
 
+  // 하단 시트 열림/닫힘 애니메이션 처리
   useEffect(() => {
     Animated.timing(bottomSheetAnimation, {
       toValue: isOpen ? 0 : BOTTOM_SHEET_HEIGHT - CLOSED_HEIGHT,
@@ -55,6 +66,10 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     }).start();
   }, [isOpen]);
 
+  /**
+   * 하단 시트 내용을 렌더링하는 함수
+   * 로딩, 에러, 검색 결과 상태에 따라 다른 UI를 표시합니다.
+   */
   const renderContent = () => {
     if (isLoading) {
       return <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />;

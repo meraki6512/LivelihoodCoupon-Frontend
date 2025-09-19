@@ -12,22 +12,28 @@ import {
 } from 'react-native';
 import { SearchResult } from '../../types/search';
 import SearchBar from '../search/SearchBar';
-
 import { Ionicons } from '@expo/vector-icons';
 
+/**
+ * SideMenu 컴포넌트의 Props 인터페이스
+ */
 interface SideMenuProps {
-  isOpen: boolean;
-  searchResults: SearchResult[];
-  onSelectResult: (item: SearchResult) => void;
-  isLoading: boolean;
-  errorMsg: string | null;
-  onToggle: () => void;
-  style: any;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onSearch: () => void;
+  isOpen: boolean; // 사이드메뉴 열림/닫힘 상태
+  searchResults: SearchResult[]; // 검색 결과 목록
+  onSelectResult: (item: SearchResult) => void; // 검색 결과 선택 핸들러
+  isLoading: boolean; // 로딩 상태
+  errorMsg: string | null; // 에러 메시지
+  onToggle: () => void; // 사이드메뉴 토글 핸들러
+  style: any; // 애니메이션 스타일
+  searchQuery: string; // 검색 쿼리
+  setSearchQuery: (query: string) => void; // 검색 쿼리 설정 핸들러
+  onSearch: () => void; // 검색 실행 핸들러
 }
 
+/**
+ * SideMenu 컴포넌트
+ * 웹 레이아웃에서 사용되는 사이드메뉴로, 검색바와 검색 결과를 표시합니다.
+ */
 const SideMenu: React.FC<SideMenuProps> = ({ 
   isOpen, 
   searchResults, 
@@ -41,6 +47,10 @@ const SideMenu: React.FC<SideMenuProps> = ({
   onSearch
 }) => {
 
+  /**
+   * 사이드메뉴 내용을 렌더링하는 함수
+   * 로딩, 에러, 검색 결과 상태에 따라 다른 UI를 표시합니다.
+   */
   const renderContent = () => {
     if (isLoading) {
       return <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />;

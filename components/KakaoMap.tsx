@@ -7,7 +7,10 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { styles } from "./KakaoMap.styles";
 
-// 웹 전용 Kakao Map 렌더링 로직
+/**
+ * 웹 전용 Kakao Map 컴포넌트
+ * 웹 환경에서 카카오맵을 직접 렌더링합니다.
+ */
 const WebKakaoMap = ({
   latitude,
   longitude,

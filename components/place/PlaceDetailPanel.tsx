@@ -4,10 +4,18 @@ import { usePlaceDetail } from '../../hooks/usePlaceDetail';
 import { usePlaceStore } from '../../store/placeStore';
 import PlaceInfoRow from './PlaceInfoRow';
 
+/**
+ * PlaceDetailPanel 컴포넌트의 Props 타입
+ */
 type Props = {
-  placeId: string;
+  placeId: string; // 장소 ID
 };
 
+/**
+ * PlaceDetailPanel 컴포넌트
+ * 선택된 장소의 상세 정보를 표시하는 패널 컴포넌트
+ * 로딩, 에러, 성공 상태에 따라 다른 UI를 렌더링합니다.
+ */
 export default function PlaceDetailPanel({ placeId }: Props) {
   const { data, isLoading, isError } = usePlaceDetail(placeId);
   const setSelectedPlaceId = usePlaceStore((s) => s.setSelectedPlaceId);
@@ -39,6 +47,10 @@ export default function PlaceDetailPanel({ placeId }: Props) {
     );
   }
 
+  /**
+   * 외부 링크를 열기 위한 함수
+   * @param url - 열고자 하는 URL
+   */
   const openLink = async (url: string) => {
     if (await Linking.canOpenURL(url)) {
       Linking.openURL(url);

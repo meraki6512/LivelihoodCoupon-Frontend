@@ -16,26 +16,45 @@ export const searchKakaoPlaces = async (
   longitude: number
 ): Promise<SearchResult[]> => {
   try {
+    console.log("검색 시작:", { query, latitude, longitude });
+    console.log("API 키 확인:", KAKAO_REST_API_KEY ? "설정됨" : "없음");
+    
     // 카카오 장소 검색 API 호출
-    const response = await fetch(
-      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${query}&x=${longitude}&y=${latitude}&radius=10000`,
-      {
-        headers: {
-          Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
-        },
-      }
-    );
+    const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&x=${longitude}&y=${latitude}&radius=10000`;
+    console.log("요청 URL:", url);
+    
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
+      },
+    });
+    
+    console.log("응답 상태:", response.status, response.statusText);
+    
     const data = await response.json();
+    console.log("API 응답 데이터:", JSON.stringify(data, null, 2));
+
+    // API 에러 응답 처리
+    if (!response.ok) {
+      if (data.error) {
+        console.error("API 에러:", data.error);
+        throw new Error(`API 에러: ${data.error.message || data.error}`);
+      }
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
     // 검색 결과가 있는 경우 SearchResult 형태로 변환
     if (data.documents && data.documents.length > 0) {
-      return data.documents.map((doc: any) => ({
+      const results = data.documents.map((doc: any) => ({
         id: String(doc.id),
         latitude: parseFloat(doc.y),
         longitude: parseFloat(doc.x),
         place_name: doc.place_name,
       }));
+      console.log("검색 결과:", results.length, "개");
+      return results;
     } else {
+      console.log("검색 결과 없음");
       return [];
     }
   } catch (error) {

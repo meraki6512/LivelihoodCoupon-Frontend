@@ -70,29 +70,6 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
    * 하단 시트 내용을 렌더링하는 함수
    * 로딩, 에러, 검색 결과 상태에 따라 다른 UI를 표시합니다.
    */
-  const renderContent = () => {
-    if (isLoading) {
-      return <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />;
-    }
-    if (errorMsg) {
-      return <Text style={styles.errorText}>{String(errorMsg)}</Text>;
-    }
-    if (searchResults.length > 0) {
-      return (
-        <FlatList
-          data={searchResults}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable onPress={() => onSelectResult(item)} style={styles.resultItem}>
-              <Text style={styles.resultItemText}>{item.place_name}</Text>
-            </Pressable>
-          )}
-        />
-      );
-    }
-    return <Text style={styles.noResultText}>검색 결과가 없거나, 검색을 시작하세요.</Text>;
-  };
-
   return (
     <Animated.View
       style={[
@@ -108,9 +85,25 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         <Ionicons name={isOpen ? "chevron-down" : "chevron-up"} size={24} color="#495057" />
       </TouchableOpacity>
       {isOpen && (
-        <View style={styles.contentContainer}> {/* New content container */}
+        <View style={styles.contentContainer}>
           <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={onSearch} />
-          {renderContent()}
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />
+          ) : errorMsg ? (
+            <Text style={styles.errorText}>{String(errorMsg)}</Text>
+          ) : searchResults.length > 0 ? (
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <Pressable onPress={() => onSelectResult(item)} style={styles.resultItem}>
+                  <Text style={styles.resultItemText}>{item.place_name}</Text>
+                </Pressable>
+              )}
+            />
+          ) : (
+            <Text style={styles.noResultText}>검색 결과가 없거나, 검색을 시작하세요.</Text>
+          )}
         </View>
       )}
     </Animated.View>

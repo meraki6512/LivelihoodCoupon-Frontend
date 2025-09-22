@@ -1,6 +1,11 @@
 import axios from 'axios';
 import { PlaceDetail } from '../types/place';
 import { ApiResponse } from '../types/api';
+import { API_BASE_URL } from '@env';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
 
 /**
  * 장소 ID로 상세 정보를 가져오는 함수
@@ -11,7 +16,8 @@ import { ApiResponse } from '../types/api';
  * @throws API 호출 실패 시 에러 발생
  */
 export async function getPlaceDetailsById(placeId: string): Promise<PlaceDetail> {
-  const res = await axios.get<ApiResponse<PlaceDetail>>(`/api/places/${placeId}`);
+  console.log('조회할 장소 placeId:', placeId);
+  const res = await apiClient.get<ApiResponse<PlaceDetail>>(`/api/places/${placeId}`);
   const payload = res.data;
   
   // API 응답 검증
@@ -24,5 +30,3 @@ export async function getPlaceDetailsById(placeId: string): Promise<PlaceDetail>
   
   return payload.data;
 }
-
-

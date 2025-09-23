@@ -16,6 +16,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       let clusterer; // Declare clusterer in a wider scope
       let currentOpenInfowindow = null; // To keep track of the currently open infowindow
       let userLocationMarker = null; // To keep track of the user location marker
+      let isUpdatingMarkers = false; // Flag to prevent idle event loop
 
       function initMap(lat, lng) {
         const mapContainer = document.getElementById('map');
@@ -33,6 +34,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         });
 
         kakao.maps.event.addListener(map, 'idle', function() {
+          if (isUpdatingMarkers) return; // Do not send idle event during marker updates
           const latlng = map.getCenter();
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'map_idle',
@@ -66,15 +68,13 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       function updateMarkers(markersData) {
         if (!map || !clusterer) return;
 
-        // Clear existing clustered markers
-        clusterer.clear();
+        isUpdatingMarkers = true;
 
-        // Clear user location marker
+        // Clear existing markers and infowindows
+        clusterer.clear();
         if (userLocationMarker) {
             userLocationMarker.setMap(null);
         }
-
-        // Close any open infowindow
         if (currentOpenInfowindow) {
             currentOpenInfowindow.close();
         }
@@ -82,6 +82,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         const userLocationData = markersData.find(m => m.markerType === 'userLocation');
         const placeMarkersData = markersData.filter(m => m.markerType !== 'userLocation');
 
+        // Handle user location marker immediately
         if (userLocationData) {
             const markerPosition = new kakao.maps.LatLng(userLocationData.lat, userLocationData.lng);
             userLocationMarker = new kakao.maps.Marker({
@@ -92,37 +93,61 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             userLocationMarker.setMap(map);
         }
 
+        // Process place markers in chunks to avoid blocking the UI thread
         if (placeMarkersData && placeMarkersData.length > 0) {
-            const kakaoMarkers = placeMarkersData.map(markerData => {
-                const markerPosition = new kakao.maps.LatLng(markerData.lat, markerData.lng);
-                const marker = new kakao.maps.Marker({
-                    position: markerPosition,
-                    image: getMarkerImage(markerData.markerType),
-                    zIndex: markerData.markerType === "selected" ? 100 : 1,
+            let index = 0;
+            const chunkSize = 50; // Process 50 markers at a time
+
+            function processChunk() {
+                const end = Math.min(index + chunkSize, placeMarkersData.length);
+                const chunk = placeMarkersData.slice(index, end);
+
+                const kakaoMarkers = chunk.map(markerData => {
+                    const markerPosition = new kakao.maps.LatLng(markerData.lat, markerData.lng);
+                    const marker = new kakao.maps.Marker({
+                        position: markerPosition,
+                        image: getMarkerImage(markerData.markerType),
+                        zIndex: markerData.markerType === "selected" ? 100 : 1,
+                    });
+
+                    const infowindow = new kakao.maps.InfoWindow({
+                        content: '<div style="padding:5px;font-size:12px;"><span style="font-weight:bold;">' + markerData.placeName + '</span><br><span>' + (markerData.categoryGroupName || '') + '</span></div>',
+                        disableAutoPan: true
+                    });
+
+                    kakao.maps.event.addListener(marker, 'click', function() {
+                        if (currentOpenInfowindow) {
+                            currentOpenInfowindow.close();
+                        }
+                        infowindow.open(map, marker);
+                        currentOpenInfowindow = infowindow;
+
+                        if (markerData.placeId && markerData.markerType !== 'userLocation') {
+                            window.ReactNativeWebView.postMessage(JSON.stringify({
+                                type: 'marker_press',
+                                id: markerData.placeId
+                            }));
+                        }
+                    });
+                    return marker;
                 });
 
-                const infowindow = new kakao.maps.InfoWindow({
-                    content: '<div style="padding:5px;font-size:12px;"><span style="font-weight:bold;">' + markerData.placeName + '</span><br><span>' + (markerData.categoryGroupName || '') + '</span></div>',
-                    disableAutoPan: true
-                });
+                // Add markers to the clusterer without redrawing
+                clusterer.addMarkers(kakaoMarkers);
+                index += chunkSize;
 
-                kakao.maps.event.addListener(marker, 'click', function() {
-                    if (currentOpenInfowindow) {
-                        currentOpenInfowindow.close();
-                    }
-                    infowindow.open(map, marker);
-                    currentOpenInfowindow = infowindow;
+                if (index < placeMarkersData.length) {
+                    setTimeout(processChunk, 0); // Schedule the next chunk
+                } else {
+                    // Last chunk finished
+                    setTimeout(() => { isUpdatingMarkers = false; }, 100); 
+                }
+            }
 
-                    if (markerData.placeId && markerData.markerType !== 'userLocation') {
-                        window.ReactNativeWebView.postMessage(JSON.stringify({
-                            type: 'marker_press',
-                            id: markerData.placeId
-                        }));
-                    }
-                });
-                return marker;
-            });
-            clusterer.addMarkers(kakaoMarkers);
+            setTimeout(processChunk, 0); // Start the process
+        } else {
+            // No place markers to process
+            isUpdatingMarkers = false;
         }
       }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -138,6 +138,22 @@ export default function Home() {
   const isLoading = locationLoading || searchLoading;
   const errorMsg = (locationError || searchError) ? String(locationError || searchError) : null;
 
+  const markers = useMemo(() => {
+    return [
+      ...(location ? [{
+        placeId: "user-location",
+        placeName: "내 위치",
+        lat: location.latitude,
+        lng: location.longitude,
+        markerType: "userLocation",
+      }] : []),
+      ...allMarkers.map(marker => ({
+        ...marker,
+        markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
+      }))
+    ];
+  }, [location, allMarkers, selectedPlaceId]);
+
   /**
    * 웹 레이아웃 렌더링
    * 사이드메뉴와 지도를 나란히 배치하는 레이아웃
@@ -171,19 +187,7 @@ export default function Home() {
             <KakaoMap
               latitude={mapCenter.latitude}
               longitude={mapCenter.longitude}
-              markers={[
-                ...(location ? [{
-                  placeId: "user-location",
-                  placeName: "내 위치",
-                  lat: location.latitude,
-                  lng: location.longitude,
-                  markerType: "userLocation",
-                }] : []),
-                ...allMarkers.map(marker => ({
-                  ...marker,
-                  markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
-                }))
-              ]}
+              markers={markers}
               onMapCenterChange={(lat, lng) =>
                 setMapCenter({ latitude: lat, longitude: lng })
               }
@@ -210,13 +214,6 @@ export default function Home() {
   const renderMobileLayout = () => (
     <SafeAreaView style={mobileStyles.safeAreaContainer}>
       <Header />
-      {isLoading && (
-        <ActivityIndicator
-          size="small"
-          color="#0000ff"
-          style={mobileStyles.loadingIndicator}
-        />
-      )}
       {errorMsg && <Text style={mobileStyles.errorText}>{errorMsg}</Text>}
 
       <CustomBottomSheet
@@ -248,19 +245,7 @@ export default function Home() {
           latitude={mapCenter.latitude}
           longitude={mapCenter.longitude}
           style={mobileStyles.mapFullScreen}
-          markers={[
-            ...(location ? [{
-              placeId: "user-location",
-              placeName: "내 위치",
-              lat: location.latitude,
-              lng: location.longitude,
-              markerType: "userLocation",
-            }] : []),
-            ...allMarkers.map(marker => ({
-              ...marker,
-              markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
-            }))
-          ]}
+          markers={markers}
           onMapCenterChange={(lat, lng) =>
             setMapCenter({ latitude: lat, longitude: lng })
           }

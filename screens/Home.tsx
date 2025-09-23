@@ -17,7 +17,7 @@ import { SearchResult } from "../types/search";
 import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
-import { useKakaoSearch } from "../hooks/useKakaoSearch";
+import { useSearch } from "../hooks/useSearch";
 import { styles as mobileStyles } from "./Home.styles";
 import Header from "../components/layout/Header";
 import SideMenu from "../components/layout/SideMenu";
@@ -47,7 +47,13 @@ export default function Home() {
     error: searchError,
     performSearch,
     clearSearchResults,
-  } = useKakaoSearch();
+    searchOptions,
+    setSearchOptions,
+    allMarkers,
+    loadingNextPage,
+    fetchNextPage,
+    pagination,
+  } = useSearch();
 
   // UI 상태 관리
   const [isMenuOpen, setIsMenuOpen] = useState(true); // 사이드메뉴 열림/닫힘 상태
@@ -87,8 +93,21 @@ export default function Home() {
       alert("지도 중심 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
       return;
     }
-    await performSearch(mapCenter.latitude, mapCenter.longitude);
+    if (!location) {
+      alert("현재 위치 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    await performSearch(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
     setBottomSheetOpen(true); // 검색 후 하단 시트 열기
+  };
+
+  const handleNextPage = async () => {
+    if (!mapCenter) return;
+    if (!location) {
+      alert("현재 위치 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    await fetchNextPage(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
   };
 
   /**
@@ -96,9 +115,9 @@ export default function Home() {
    * 선택된 장소로 지도를 이동하고 상세 정보를 표시합니다.
    */
   const handleSelectResult = (item: SearchResult) => {
-    setMapCenter({ latitude: item.latitude, longitude: item.longitude });
-    if (item.id) {
-      setSelectedPlaceId(item.id);
+    setMapCenter({ latitude: item.lat, longitude: item.lng });
+    if (item.placeId) {
+      setSelectedPlaceId(item.placeId);
     }
     setBottomSheetOpen(false); // 결과 선택 후 하단 시트 닫기
   };
@@ -126,13 +145,30 @@ export default function Home() {
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSearch={handleSearch}
+          searchOptions={searchOptions}
+          setSearchOptions={setSearchOptions}
+          loadingNextPage={loadingNextPage}
+          onNextPage={handleNextPage}
+          pagination={pagination}
         />
         <View style={webStyles.mapContainer}>
           {mapCenter ? (
             <KakaoMap
               latitude={mapCenter.latitude}
               longitude={mapCenter.longitude}
-              markers={searchResults}
+              markers={[
+                ...(location ? [{
+                  placeId: "user-location",
+                  placeName: "내 위치",
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  markerType: "userLocation",
+                }] : []),
+                ...allMarkers.map(marker => ({
+                  ...marker,
+                  markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
+                }))
+              ]}
               onMapCenterChange={(lat, lng) =>
                 setMapCenter({ latitude: lat, longitude: lng })
               }
@@ -178,6 +214,11 @@ export default function Home() {
         isLoading={searchLoading}
         errorMsg={searchError}
         onSelectResult={handleSelectResult}
+        searchOptions={searchOptions}
+        setSearchOptions={setSearchOptions}
+        loadingNextPage={loadingNextPage}
+        onNextPage={handleNextPage}
+        pagination={pagination}
       />
 
       {bottomSheetOpen && (
@@ -189,7 +230,19 @@ export default function Home() {
           latitude={mapCenter.latitude}
           longitude={mapCenter.longitude}
           style={mobileStyles.mapFullScreen}
-          markers={searchResults}
+          markers={[
+            ...(location ? [{
+              placeId: "user-location",
+              placeName: "내 위치",
+              lat: location.latitude,
+              lng: location.longitude,
+              markerType: "userLocation",
+            }] : []),
+            ...allMarkers.map(marker => ({
+              ...marker,
+              markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
+            }))
+          ]}
           onMapCenterChange={(lat, lng) =>
             setMapCenter({ latitude: lat, longitude: lng })
           }

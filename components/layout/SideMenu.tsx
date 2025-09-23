@@ -5,7 +5,6 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Pressable,
   Animated,
   TouchableOpacity,
   Platform,
@@ -13,27 +12,29 @@ import {
 import { SearchResult } from '../../types/search';
 import SearchBar from '../search/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
+import SearchOptions from '../search/SearchOptions';
+import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
+import { PageResponse } from '../../types/api';
+import SearchResultItem from '../search/SearchResultItem';
 
-/**
- * SideMenu 컴포넌트의 Props 인터페이스
- */
 interface SideMenuProps {
-  isOpen: boolean; // 사이드메뉴 열림/닫힘 상태
-  searchResults: SearchResult[]; // 검색 결과 목록
-  onSelectResult: (item: SearchResult) => void; // 검색 결과 선택 핸들러
-  isLoading: boolean; // 로딩 상태
-  errorMsg: string | null; // 에러 메시지
-  onToggle: () => void; // 사이드메뉴 토글 핸들러
-  style: any; // 애니메이션 스타일
-  searchQuery: string; // 검색 쿼리
-  setSearchQuery: (query: string) => void; // 검색 쿼리 설정 핸들러
-  onSearch: () => void; // 검색 실행 핸들러
+  isOpen: boolean;
+  searchResults: SearchResult[];
+  onSelectResult: (item: SearchResult) => void;
+  isLoading: boolean;
+  errorMsg: string | null;
+  onToggle: () => void;
+  style: any;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  onSearch: () => void;
+  searchOptions: SearchOptionsType;
+  setSearchOptions: (options: Partial<SearchOptionsType>) => void;
+  loadingNextPage: boolean;
+  onNextPage: () => void;
+  pagination: Omit<PageResponse<any>, 'content'> | null;
 }
 
-/**
- * SideMenu 컴포넌트
- * 웹 레이아웃에서 사용되는 사이드메뉴로, 검색바와 검색 결과를 표시합니다.
- */
 const SideMenu: React.FC<SideMenuProps> = ({ 
   isOpen, 
   searchResults, 
@@ -44,13 +45,19 @@ const SideMenu: React.FC<SideMenuProps> = ({
   style,
   searchQuery,
   setSearchQuery,
-  onSearch
+  onSearch,
+  searchOptions,
+  setSearchOptions,
+  loadingNextPage,
+  onNextPage,
+  pagination,
 }) => {
 
-  /**
-   * 사이드메뉴 내용을 렌더링하는 함수
-   * 로딩, 에러, 검색 결과 상태에 따라 다른 UI를 표시합니다.
-   */
+  const renderFooter = () => {
+    if (!loadingNextPage) return null;
+    return <ActivityIndicator style={{ paddingVertical: 20 }} size="large" color="#007bff" />;
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <ActivityIndicator size="large" color="#007bff" style={{ marginTop: 20 }} />;
@@ -62,12 +69,11 @@ const SideMenu: React.FC<SideMenuProps> = ({
       return (
         <FlatList
           data={searchResults}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable onPress={() => onSelectResult(item)} style={styles.resultItem}>
-              <Text style={styles.resultItemText}>{item.place_name}</Text>
-            </Pressable>
-          )}
+          keyExtractor={(item) => item.placeId}
+          renderItem={({ item }) => <SearchResultItem item={item} onPress={onSelectResult} />}
+          onEndReached={onNextPage}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
         />
       );
     }
@@ -84,6 +90,10 @@ const SideMenu: React.FC<SideMenuProps> = ({
         setSearchQuery={setSearchQuery}
         onSearch={onSearch}
       />
+      <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
+      {pagination && searchResults.length > 0 && (
+        <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>
+      )}
       {renderContent()}
     </Animated.View>
   );
@@ -143,11 +153,6 @@ const styles = StyleSheet.create({
       }
     })
   },
-  toggleButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#495057',
-  },
   errorText: {
     color: 'red',
     textAlign: 'center',
@@ -158,13 +163,12 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: '#6c757d',
   },
-  resultItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  resultItemText: {
-    fontSize: 16,
+  resultCountText: {
+    textAlign: 'right',
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 10,
+    marginRight: 5,
   },
 });
 

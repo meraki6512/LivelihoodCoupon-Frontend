@@ -5,8 +5,16 @@
 export type ApiResponse<T> = {
   success: boolean; // 요청 성공 여부
   data: T; // 실제 데이터 (제네릭 타입)
-  error: string | null; // 에러 메시지 (성공 시 null)
+  error: { message: string } | null; // 에러 메시지 (성공 시 null)
   timestamp: string; // 응답 생성 시간
 };
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  isLast: boolean;
+  currentPage: number;
+}
 
 

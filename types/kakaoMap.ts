@@ -4,10 +4,12 @@ import { ViewStyle } from "react-native";
  * 지도 마커 데이터 타입
  */
 export type MarkerData = {
-  id?: string; // 마커 ID (선택적)
-  latitude: number; // 위도
-  longitude: number; // 경도
-  place_name: string; // 장소명
+  placeId: string; // 마커 ID (SearchResult의 placeId와 매핑)
+  lat: number; // 위도 (SearchResult의 lat과 매핑)
+  lng: number; // 경도 (SearchResult의 lng과 매핑)
+  placeName: string; // 장소명 (SearchResult의 placeName과 매핑)
+  categoryGroupName?: string; // 카테고리 그룹명 (SearchResult의 category_group_name과 매핑)
+  markerType?: string; // 마커 타입 (예: 'default', 'selected', 'categoryA')
 };
 
 /**

@@ -22,7 +22,7 @@ export async function getPlaceDetailsById(placeId: string): Promise<PlaceDetail>
   
   // API 응답 검증
   if (!payload || payload.success === false) {
-    throw new Error(payload?.error || 'Failed to fetch place details');
+    throw new Error(payload?.error?.message || 'Failed to fetch place details');
   }
   if (!payload.data) {
     throw new Error('Place details not found');

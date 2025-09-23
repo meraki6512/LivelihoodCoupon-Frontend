@@ -1,10 +1,15 @@
 /**
- * 검색 결과 타입
- * 카카오 장소 검색 API의 응답을 변환한 형태입니다.
+ * 백엔드 API의 검색 결과(SearchResponse)에 해당하는 타입
  */
 export type SearchResult = {
-  id: string; // 장소 고유 ID
-  latitude: number; // 위도
-  longitude: number; // 경도
-  place_name: string; // 장소명
+  placeId: string;
+  placeName: string;
+  roadAddress: string;
+  lotAddress: string;
+  lat: number;
+  lng: number;
+  phone: string;
+  categoryGroupName: string;
+  placeUrl: string;
+  distance: number;
 };

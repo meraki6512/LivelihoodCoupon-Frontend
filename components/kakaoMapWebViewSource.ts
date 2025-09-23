@@ -15,6 +15,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       let map; // Declare map in a wider scope
       let clusterer; // Declare clusterer in a wider scope
       let markers = []; // To keep track of markers
+      let currentOpenInfowindow = null; // To keep track of the currently open infowindow
 
       function initMap(lat, lng) {
         const mapContainer = document.getElementById('map');
@@ -58,10 +59,20 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             const kakaoMarkers = markersData.map(markerData => {
               const markerPosition = new kakao.maps.LatLng(markerData.latitude, markerData.longitude);
               const marker = new kakao.maps.Marker({ position: markerPosition });
-              const infowindow = new kakao.maps.InfoWindow({ content: '<div style="padding:5px;font-size:12px;">' + markerData.place_name + '</div>' });
-              kakao.maps.event.addListener(marker, 'mouseover', function() { infowindow.open(map, marker); });
-              kakao.maps.event.addListener(marker, 'mouseout', function() { infowindow.close(); });
+              const infowindow = new kakao.maps.InfoWindow({ content: '<div style="padding:5px;font-size:12px;">' + markerData.place_name + '<br/>' + markerData.category_name + '</div>' });
+              
+              // Store infowindow with marker for easy access
+              marker.infowindow = infowindow;
+
               kakao.maps.event.addListener(marker, 'click', function() {
+                // Close any currently open infowindow
+                if (currentOpenInfowindow) {
+                  currentOpenInfowindow.close();
+                }
+                // Open the clicked marker's infowindow
+                infowindow.open(map, marker);
+                currentOpenInfowindow = infowindow;
+
                 if (markerData.id) {
                   window.ReactNativeWebView.postMessage(JSON.stringify({
                     type: 'marker_press', id: markerData.id

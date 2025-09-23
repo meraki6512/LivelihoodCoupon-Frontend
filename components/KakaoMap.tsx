@@ -7,120 +7,111 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { styles } from "./KakaoMap.styles";
 
-/**
- * 웹 전용 Kakao Map 컴포넌트
- * 웹 환경에서 카카오맵을 직접 렌더링합니다.
- */
-const WebKakaoMap = ({
-  latitude,
-  longitude,
-  markers,
-  onMapCenterChange,
-  onMarkerPress,
-}: KakaoMapProps) => {
-  const { isLoaded, error: scriptError } = useKakaoMapScript();
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstance = useRef<any>(null);
-  const clustererInstance = useRef<any>(null);
+  const WebKakaoMap = ({
+    latitude,
+    longitude,
+    markers,
+    onMapCenterChange,
+    onMarkerPress,
+  }: KakaoMapProps) => {
+    const { isLoaded, error: scriptError } = useKakaoMapScript();
+    const mapRef = useRef<HTMLDivElement>(null);
+    const mapInstance = useRef<any>(null);
+    const clustererInstance = useRef<any>(null);
+    const infowindowInstance = useRef<any>(null); // Single infowindow instance
 
-  // Effect for initial map creation and event listeners
-  useEffect(() => {
-    if (mapRef.current && isLoaded && !mapInstance.current) {
-      const mapContainer = mapRef.current;
-      const mapOption = {
-        center: new window.kakao.maps.LatLng(latitude, longitude),
-        level: 3,
-        maxLevel: 14,
-      };
-      const map = new window.kakao.maps.Map(mapContainer, mapOption);
-      mapInstance.current = map;
+    // Effect for initial map creation
+    useEffect(() => {
+      if (mapRef.current && isLoaded && !mapInstance.current) {
+        const mapContainer = mapRef.current;
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(latitude, longitude),
+          level: 3,
+          maxLevel: 14,
+        };
+        const map = new window.kakao.maps.Map(mapContainer, mapOption);
+        mapInstance.current = map;
 
-      window.kakao.maps.event.addListener(map, "center_changed", function () {
-        const latlng = map.getCenter();
-        onMapCenterChange &&
-          onMapCenterChange(latlng.getLat(), latlng.getLng());
-      });
-
-      const clusterer = new window.kakao.maps.MarkerClusterer({
-        map: map,
-        averageCenter: true,
-        minLevel: 7,
-      });
-      clustererInstance.current = clusterer;
-
-      // Initial markers (if any)
-      if (markers) {
-        const kakaoMarkers = markers.map((markerData) => {
-          const markerPosition = new window.kakao.maps.LatLng(
-            markerData.latitude,
-            markerData.longitude
-          );
-          const marker = new window.kakao.maps.Marker({
-            position: markerPosition,
-          });
-          const infowindow = new window.kakao.maps.InfoWindow({
-            content: `<div style="padding:5px;font-size:12px;">${markerData.place_name}</div>`,
-          });
-          window.kakao.maps.event.addListener(marker, "mouseover", function () {
-            infowindow.open(map, marker);
-          });
-          window.kakao.maps.event.addListener(marker, "mouseout", function () {
-            infowindow.close();
-          });
-          window.kakao.maps.event.addListener(marker, "click", function () {
-            if (onMarkerPress) onMarkerPress(markerData.id);
-          });
-          return marker;
+        window.kakao.maps.event.addListener(map, "center_changed", function () {
+          const latlng = map.getCenter();
+          onMapCenterChange &&
+            onMapCenterChange(latlng.getLat(), latlng.getLng());
         });
-        clusterer.addMarkers(kakaoMarkers);
-      }
-    }
-  }, [isLoaded, mapRef.current, latitude, longitude]); // Re-run when script is loaded or mapRef changes
 
-  // Effect for updating map center when latitude/longitude props change
-  useEffect(() => {
-    if (
-      mapInstance.current &&
-      latitude !== undefined &&
-      longitude !== undefined
-    ) {
-      const newCenter = new window.kakao.maps.LatLng(latitude, longitude);
-      mapInstance.current.setCenter(newCenter);
-    }
-  }, [latitude, longitude]);
-
-  // Effect for updating markers when markers prop changes
-  useEffect(() => {
-    if (mapInstance.current && clustererInstance.current) {
-      clustererInstance.current.clear();
-
-      if (markers && markers.length > 0) {
-        const kakaoMarkers = markers.map((markerData) => {
-          const markerPosition = new window.kakao.maps.LatLng(
-            markerData.latitude,
-            markerData.longitude
-          );
-          const marker = new window.kakao.maps.Marker({
-            position: markerPosition,
-          });
-          const infowindow = new window.kakao.maps.InfoWindow({
-            content: `<div style="padding:5px;font-size:12px;">${markerData.place_name}</div>`,
-          });
-          window.kakao.maps.event.addListener(marker, "mouseover", function () {
-            infowindow.open(mapInstance.current, marker);
-          });
-          window.kakao.maps.event.addListener(marker, "mouseout", function () {
-            infowindow.close();
-          });
-          window.kakao.maps.event.addListener(marker, "click", function () {
-            if (onMarkerPress) onMarkerPress(markerData.id);
-          });
-          return marker;
+        clustererInstance.current = new window.kakao.maps.MarkerClusterer({
+          map: map,
+          averageCenter: true,
+          minLevel: 7,
         });
-        clustererInstance.current.addMarkers(kakaoMarkers);
+
+        infowindowInstance.current = new window.kakao.maps.InfoWindow({ disableAutoPan: true });
       }
-    }
-  }, [markers]);
+    }, [isLoaded, mapRef.current, latitude, longitude]);
+
+    // Effect for updating map center
+    useEffect(() => {
+      if (mapInstance.current && latitude !== undefined && longitude !== undefined) {
+        const newCenter = new window.kakao.maps.LatLng(latitude, longitude);
+        mapInstance.current.setCenter(newCenter);
+      }
+    }, [latitude, longitude]);
+
+    // Effect for updating markers
+    useEffect(() => {
+      if (mapInstance.current && clustererInstance.current) {
+        clustererInstance.current.clear();
+        infowindowInstance.current?.close();
+
+        // Helper function to get marker image based on type
+        const getMarkerImage = (type?: string) => {
+          const imageSrc =
+            type === "selected"
+              ? "https://velog.velcdn.com/images/daeng_ae/post/616c30b6-ec60-43a4-8df7-ae28ba3a1438/image.png" // 선택 마커
+              : type === "userLocation"
+              ? "https://velog.velcdn.com/images/daeng_ae/post/7ae477a1-4f89-4848-9089-7b0186b280cc/image.png" // 사용자 마커
+              : "https://velog.velcdn.com/images/daeng_ae/post/35b23de1-b1f3-458f-82f5-cbc1bc7c230d/image.png"; // 기본 마커
+
+          const imageSize = new window.kakao.maps.Size(36, 36);
+          const imageOption = { offset: new window.kakao.maps.Point(18, 36) };
+
+          return new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
+        };
+
+        if (markers && markers.length > 0) {
+          const kakaoMarkers = markers.map((markerData) => {
+            const markerPosition = new window.kakao.maps.LatLng(
+              markerData.lat,
+              markerData.lng
+            );
+            const marker = new window.kakao.maps.Marker({
+              position: markerPosition,
+              image: getMarkerImage(markerData.markerType),
+              zIndex: markerData.markerType === "selected" ? 100 : 1,
+            });
+
+            const infowindow = new window.kakao.maps.InfoWindow({
+              content: `<div style="padding:5px;font-size:12px;"><span style="font-weight:bold;">${markerData.placeName}</span><br><span>${markerData.categoryGroupName}</span></div>`,
+            });
+
+            window.kakao.maps.event.addListener(marker, "click", function () {
+              if (infowindowInstance.current) {
+                infowindowInstance.current.close();
+              }
+              infowindow.open(mapInstance.current, marker);
+              infowindowInstance.current = infowindow;
+
+              if (markerData.markerType !== "userLocation" && onMarkerPress) {
+                onMarkerPress(markerData.placeId);
+              }
+            });
+
+            return marker;
+          });
+
+          clustererInstance.current.addMarkers(kakaoMarkers);
+        }
+      }
+    }, [markers]);
 
   if (scriptError) {
     return (
@@ -197,26 +188,10 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
 
   // Effect for updating markers when markers prop changes
   useEffect(() => {
-    if (webViewRef.current && markers && htmlContent && isMapInitialized) {
-      if (!isInitialMarkersLoaded) {
-        markerLoadTimer.current = setTimeout(() => {
-          if (webViewRef.current) {
-            const script = `updateMarkers(${JSON.stringify(markers)}); true;`;
-            webViewRef.current.injectJavaScript(script);
-            setIsInitialMarkersLoaded(true);
-          }
-        }, 100);
-      } else {
-        const script = `updateMarkers(${JSON.stringify(markers)}); true;`;
-        webViewRef.current.injectJavaScript(script);
-      }
+    if (webViewRef.current && htmlContent && isMapInitialized) {
+      const script = `updateMarkers(${JSON.stringify(markers || [])}); true;`;
+      webViewRef.current.injectJavaScript(script);
     }
-
-    return () => {
-      if (markerLoadTimer.current) {
-        clearTimeout(markerLoadTimer.current);
-      }
-    };
   }, [markers, htmlContent, isMapInitialized]);
 
   if (!htmlContent) {

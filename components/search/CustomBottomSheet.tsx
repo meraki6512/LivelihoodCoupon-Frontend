@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -65,6 +65,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const CLOSED_HEIGHT = 70;
 
   const bottomSheetAnimation = useRef(new Animated.Value(BOTTOM_SHEET_HEIGHT - CLOSED_HEIGHT)).current;
+  const [showSearchOptions, setShowSearchOptions] = useState(false); // New state for toggle
 
   useEffect(() => {
     Animated.timing(bottomSheetAnimation, {
@@ -73,6 +74,12 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       useNativeDriver: true,
     }).start();
   }, [isOpen]);
+
+  // Local search handler to auto-collapse options
+  const handleLocalSearch = () => {
+    onSearch(); // Call original onSearch prop
+    setShowSearchOptions(false); // Auto-collapse options
+  };
 
   const renderFooter = () => {
     if (!loadingNextPage) return null;
@@ -117,8 +124,10 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       </TouchableOpacity>
       {isOpen && (
         <View style={styles.contentContainer}>
-          <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={onSearch} />
-          <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
+          <SearchBar style={{ flex: 1 }} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
+          {showSearchOptions && (
+            <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
+          )}
           {pagination && searchResults.length > 0 && (
             <View style={styles.resultCountContainer}>
               <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>

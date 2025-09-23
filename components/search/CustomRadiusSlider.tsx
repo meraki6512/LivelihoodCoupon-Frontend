@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     top: -7,
     justifyContent: 'center',
     alignItems: 'center',
-    transform: [{ translateX: -10 }],
+    marginLeft: -10,
   },
   stepPoint: {
     width: 8,

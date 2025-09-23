@@ -84,9 +84,8 @@ const CustomRadiusSlider: React.FC<CustomRadiusSliderProps> = ({ value, onValueC
         {RADIUS_STEPS.map((step, index) => (
           <TouchableOpacity
             key={step}
-            style={[styles.stepContainer, { left: `${(index / (RADIUS_STEPS.length - 1)) * 100}%` }]}
+            style={[styles.stepHitBox, { left: `${(index / (RADIUS_STEPS.length - 1)) * 100}%` }]}
             onPress={() => handlePress(index)}
-            hitSlop={{ top: 50, bottom: 50, left: 50, right: 50 }}
           >
             <View style={[styles.stepPoint, RADIUS_STEPS.indexOf(value) >= index ? styles.stepPointActive : {}]} />
           </TouchableOpacity>
@@ -128,14 +127,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#007bff',
     borderRadius: 3,
   },
-  stepContainer: {
-    width: 20,
-    height: 20,
+  stepHitBox: {
     position: 'absolute',
-    top: -7,
+    width: 40,  // 넉넉하게
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: -10,
+    top: -17, // 정렬을 위해 조정
+    transform: [{ translateX: -20 }], // 정중앙
   },
   stepPoint: {
     width: 8,

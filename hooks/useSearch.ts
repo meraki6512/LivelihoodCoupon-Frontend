@@ -1,180 +1,235 @@
-import { useState, useCallback } from "react";
+import { useReducer, useCallback } from "react";
 import { searchPlaces } from "../services/searchApi";
 import { SearchResult } from "../types/search";
 import { PageResponse } from "../types/api";
+
+// --- 1. 타입 정의 ---
 
 export interface SearchOptions {
   radius: number;
   sort: string;
 }
 
-interface UseSearchResult {
+interface SearchState {
   searchQuery: string;
-  setSearchQuery: (query: string) => void;
   searchOptions: SearchOptions;
-  setSearchOptions: (options: Partial<SearchOptions>) => void;
-  searchResults: SearchResult[]; // 목록용 (페이징)
-  allMarkers: SearchResult[]; // 지도용 (전체)
+  
+  listResults: SearchResult[];
+  allMapMarkers: SearchResult[];
+  pagination: Omit<PageResponse<any>, 'content'> | null;
+  
   loading: boolean;
   loadingNextPage: boolean;
+  loadingAllMarkers: boolean;
+  markerCountReachedLimit: boolean; // 마커 로딩 제한에 도달했는지 여부
   error: string | null;
-  performSearch: (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
-  fetchNextPage: (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
-  clearSearchResults: () => void;
-  pagination: Omit<PageResponse<any>, 'content'> | null;
 }
 
-const MAX_PAGES_FOR_MARKERS = 10; // 무한 루프 방지를 위한 최대 페이지 제한
+type SearchAction =
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
+  | { type: 'SET_SEARCH_OPTIONS'; payload: Partial<SearchOptions> }
+  | { type: 'START_SEARCH' }
+  | { type: 'SEARCH_SUCCESS'; payload: PageResponse<SearchResult> }
+  | { type: 'SEARCH_FAILURE'; payload: string }
+  | { type: 'START_NEXT_PAGE' }
+  | { type: 'NEXT_PAGE_SUCCESS'; payload: PageResponse<SearchResult> }
+  | { type: 'CLEAR_SEARCH' }
+  | { type: 'START_ALL_MARKERS_LOAD' }
+  | { type: 'APPEND_MARKERS'; payload: SearchResult[] }
+  | { type: 'FINISH_ALL_MARKERS_LOAD'; payload: { limitReached: boolean } };
 
-export const useSearch = (): UseSearchResult => {
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchOptions, setSearchOptionsState] = useState<SearchOptions>({ radius: 1000, sort: 'distance' });
-  
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [allMarkers, setAllMarkers] = useState<SearchResult[]>([]);
-  const [pagination, setPagination] = useState<Omit<PageResponse<any>, 'content'> | null>(null);
-  
-  const [loading, setLoading] = useState<boolean>(false);
-  const [loadingNextPage, setLoadingNextPage] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+// --- 2. 초기 상태 및 리듀서 ---
 
-  const setSearchOptions = (options: Partial<SearchOptions>) => {
-    setSearchOptionsState(prev => ({ ...prev, ...options }));
+const initialState: SearchState = {
+  searchQuery: "",
+  searchOptions: { radius: 1000, sort: 'distance' },
+  listResults: [],
+  allMapMarkers: [],
+  pagination: null,
+  loading: false,
+  loadingNextPage: false,
+  loadingAllMarkers: false,
+  markerCountReachedLimit: false,
+  error: null,
+};
+
+const searchReducer = (state: SearchState, action: SearchAction): SearchState => {
+  switch (action.type) {
+    case 'SET_SEARCH_QUERY':
+      return { ...state, searchQuery: action.payload };
+    
+    case 'SET_SEARCH_OPTIONS':
+      return { ...state, searchOptions: { ...state.searchOptions, ...action.payload } };
+
+    case 'START_SEARCH':
+      return {
+        ...state,
+        loading: true,
+        error: null,
+        listResults: [],
+        allMapMarkers: [],
+        pagination: null,
+        markerCountReachedLimit: false, // 검색 시작 시 리셋
+      };
+
+    case 'SEARCH_SUCCESS':
+      const { content, ...pageInfo } = action.payload;
+      return {
+        ...state,
+        loading: false,
+        listResults: content,
+        allMapMarkers: content,
+        pagination: pageInfo,
+      };
+
+    case 'SEARCH_FAILURE':
+      return { ...state, loading: false, loadingAllMarkers: false, error: action.payload };
+
+    case 'START_NEXT_PAGE':
+      return { ...state, loadingNextPage: true };
+
+    case 'NEXT_PAGE_SUCCESS':
+      const { content: newContent, ...newPageInfo } = action.payload;
+      const uniqueNewContent = newContent.filter(
+        (newItem) => !state.listResults.some((existingItem) => existingItem.placeId === newItem.placeId)
+      );
+      return {
+        ...state,
+        loadingNextPage: false,
+        listResults: [...state.listResults, ...uniqueNewContent],
+        pagination: state.pagination ? {
+          ...state.pagination,
+          currentPage: newPageInfo.currentPage,
+          isLast: newPageInfo.isLast,
+        } : newPageInfo,
+      };
+
+    case 'CLEAR_SEARCH':
+      return { ...state, listResults: [], allMapMarkers: [], pagination: null, markerCountReachedLimit: false };
+
+    case 'START_ALL_MARKERS_LOAD':
+      return { ...state, loadingAllMarkers: true };
+
+    case 'APPEND_MARKERS':
+      const uniqueNewMarkers = action.payload.filter(
+        (newItem) => !state.allMapMarkers.some((existingItem) => existingItem.placeId === newItem.placeId)
+      );
+      return {
+        ...state,
+        allMapMarkers: [...state.allMapMarkers, ...uniqueNewMarkers],
+      };
+    
+    case 'FINISH_ALL_MARKERS_LOAD':
+      return { 
+        ...state, 
+        loadingAllMarkers: false,
+        markerCountReachedLimit: action.payload.limitReached,
+      };
+
+    default:
+      return state;
+  }
+};
+
+// --- 3. 커스텀 훅 ---
+
+export const useSearch = () => {
+  const [state, dispatch] = useReducer(searchReducer, initialState);
+
+  const setSearchQuery = (query: string) => {
+    dispatch({ type: 'SET_SEARCH_QUERY', payload: query });
   };
 
-  const fetchAndSetAllMarkers = async (
-    query: string, 
-    lat: number, 
-    lng: number, 
-    radius: number, 
-    sort: string, 
-    firstPageContent: SearchResult[], 
-    pageInfo: Omit<PageResponse<any>, 'content'>
-  ) => {
-    let allResults = [...firstPageContent];
-    let currentPage = pageInfo.currentPage + 1;
-    let hasNext = !pageInfo.isLast;
+  const setSearchOptions = (options: Partial<SearchOptions>) => {
+    dispatch({ type: 'SET_SEARCH_OPTIONS', payload: options });
+  };
+
+  const performSearch = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+    if (!state.searchQuery.trim()) {
+      alert("검색어를 입력해주세요.");
+      return;
+    }
+    dispatch({ type: 'START_SEARCH' });
+    try {
+      const firstPageData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, 1, userLatitude, userLongitude);
+      if (firstPageData.content.length === 0) {
+        alert("검색 결과가 없습니다.");
+      }
+      dispatch({ type: 'SEARCH_SUCCESS', payload: firstPageData });
+    } catch (err: any) {
+      dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "검색 중 오류가 발생했습니다." });
+    }
+  }, [state.searchQuery, state.searchOptions]);
+
+  const fetchNextPage = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+    if (state.loadingNextPage || !state.pagination || state.pagination.isLast) return;
+    dispatch({ type: 'START_NEXT_PAGE' });
+    try {
+      const nextPage = state.pagination.currentPage + 1;
+      const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, nextPage, userLatitude, userLongitude);
+      dispatch({ type: 'NEXT_PAGE_SUCCESS', payload: resultsData });
+    } catch (err: any) {
+      console.error("다음 페이지 로딩 중 오류:", err);
+      dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "다음 페이지 로딩 중 오류가 발생했습니다." });
+    }
+  }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
+
+  const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+    if (!state.pagination || state.pagination.isLast || state.loadingAllMarkers) {
+      return;
+    }
+    dispatch({ type: 'START_ALL_MARKERS_LOAD' });
+    let currentPage = state.pagination.currentPage + 1;
+    let hasNext = !state.pagination.isLast;
+    let limitReached = false;
+    const MAX_PAGES_FOR_MARKERS = 10;
 
     while (hasNext && currentPage <= MAX_PAGES_FOR_MARKERS) {
       try {
-        console.log(`Fetching page ${currentPage} for markers...`);
-        const result = await searchPlaces(query, lat, lng, radius, sort, currentPage);
-        const uniqueNewContent = result.content.filter(
-          (newItem) => !allResults.some((existingItem) => existingItem.placeId === newItem.placeId)
-        );
-        allResults.push(...uniqueNewContent);
+        const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, currentPage, userLatitude, userLongitude);
         
-        hasNext = !result.isLast;
-        currentPage++;
+        dispatch({ type: 'APPEND_MARKERS', payload: resultsData.content });
 
-      } catch (e) {
-        console.error(`Error fetching page ${currentPage} for markers:`, e);
-        hasNext = false; // Stop on error
-      }
-    }
-
-    if (currentPage > MAX_PAGES_FOR_MARKERS) {
-      console.warn(`Marker fetch stopped at max pages (${MAX_PAGES_FOR_MARKERS}).`);
-    }
-
-    setAllMarkers(allResults);
-  };
-
-  const performSearch = useCallback(
-    async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-      if (!searchQuery.trim()) {
-        alert("검색어를 입력해주세요.");
-        return;
-      }
-
-      setLoading(true);
-      setSearchResults([]);
-      setAllMarkers([]);
-      setError(null);
-
-      try {
-        const firstPageData = await searchPlaces(
-          searchQuery,
-          latitude,
-          longitude,
-          searchOptions.radius,
-          searchOptions.sort,
-          1,
-          userLatitude,
-          userLongitude
-        );
-        
-        const { content, ...pageInfo } = firstPageData;
-
-        setSearchResults(content);
-        setPagination(pageInfo);
-
-        if (content.length === 0) {
-          alert("검색 결과가 없습니다.");
-        } else {
-          fetchAndSetAllMarkers(searchQuery, latitude, longitude, searchOptions.radius, searchOptions.sort, content, pageInfo);
+        // If results are less than page size, it must be the last page.
+        if (resultsData.content.length < 10) {
+          hasNext = false;
         }
 
-      } catch (err: any) {
-        setError(err.message || "검색 중 오류가 발생했습니다.");
-      } finally {
-        setLoading(false);
+        if (resultsData.isLast) {
+          hasNext = false;
+        }
+        currentPage++;
+      } catch (err) {
+        console.error(`Error fetching page ${currentPage} for markers:`, err);
+        hasNext = false;
       }
-    },
-    [searchQuery, searchOptions]
-  );
-
-  const fetchNextPage = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-    if (loadingNextPage || !pagination || pagination.isLast) {
-      return;
     }
 
-    setLoadingNextPage(true);
-    try {
-      const nextPage = pagination.currentPage + 1;
-      const resultsData = await searchPlaces(
-        searchQuery,
-        latitude,
-        longitude,
-        searchOptions.radius,
-        searchOptions.sort,
-        nextPage,
-        userLatitude,
-        userLongitude
-      );
-      const { content, ...pageInfo } = resultsData;
-      // Filter out duplicates based on placeId before adding to searchResults
-      const uniqueNewContent = content.filter(
-        (newItem) => !searchResults.some((existingItem) => existingItem.placeId === newItem.placeId)
-      );
-      setSearchResults(prev => [...prev, ...uniqueNewContent]);
-      setPagination(pageInfo);
-    } catch (err: any) {
-      setError(err.message || "다음 페이지 로딩 중 오류가 발생했습니다.");
-    } finally {
-      setLoadingNextPage(false);
-    }
-  }, [pagination, loadingNextPage, searchQuery, searchOptions]);
+    limitReached = hasNext;
 
-  const clearSearchResults = useCallback(() => {
-    setSearchResults([]);
-    setAllMarkers([]);
-    setPagination(null);
-  }, []);
+    dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached } });
+  }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers]);
+
+  const clearSearchResults = () => {
+    dispatch({ type: 'CLEAR_SEARCH' });
+  };
 
   return {
-    searchQuery,
+    searchQuery: state.searchQuery,
     setSearchQuery,
-    searchOptions,
+    searchOptions: state.searchOptions,
     setSearchOptions,
-    searchResults,
-    allMarkers,
-    loading,
-    loadingNextPage,
-    error,
+    searchResults: state.listResults,
+    allMarkers: state.allMapMarkers,
+    loading: state.loading,
+    loadingNextPage: state.loadingNextPage,
+    loadingAllMarkers: state.loadingAllMarkers,
+    markerCountReachedLimit: state.markerCountReachedLimit,
+    error: state.error,
     performSearch,
     fetchNextPage,
+    fetchAllMarkers,
     clearSearchResults,
-    pagination,
+    pagination: state.pagination,
   };
 };

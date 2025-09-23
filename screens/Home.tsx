@@ -51,8 +51,11 @@ export default function Home() {
     setSearchOptions,
     allMarkers,
     loadingNextPage,
+    loadingAllMarkers,
+    markerCountReachedLimit,
     fetchNextPage,
     pagination,
+    fetchAllMarkers,
   } = useSearch();
 
   // UI 상태 관리
@@ -73,6 +76,15 @@ export default function Home() {
       setMapCenter({ latitude: location.latitude, longitude: location.longitude });
     }
   }, [location, mapCenter]);
+
+  // 최초 검색 성공 후, 모든 마커를 가져오는 로직
+  useEffect(() => {
+    if (pagination && pagination.currentPage === 1 && !pagination.isLast) {
+      if (mapCenter && location) {
+        fetchAllMarkers(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
+      }
+    }
+  }, [pagination]);
 
   // 사이드메뉴 애니메이션 처리
   useEffect(() => {
@@ -137,6 +149,7 @@ export default function Home() {
         <SideMenu
           isOpen={isMenuOpen}
           searchResults={searchResults}
+          allMarkers={allMarkers}
           onSelectResult={handleSelectResult}
           isLoading={searchLoading}
           errorMsg={errorMsg}
@@ -148,6 +161,8 @@ export default function Home() {
           searchOptions={searchOptions}
           setSearchOptions={setSearchOptions}
           loadingNextPage={loadingNextPage}
+          loadingAllMarkers={loadingAllMarkers}
+          markerCountReachedLimit={markerCountReachedLimit}
           onNextPage={handleNextPage}
           pagination={pagination}
         />
@@ -211,12 +226,15 @@ export default function Home() {
         setSearchQuery={setSearchQuery}
         onSearch={handleSearch}
         searchResults={searchResults}
+        allMarkers={allMarkers}
         isLoading={searchLoading}
         errorMsg={searchError}
         onSelectResult={handleSelectResult}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
         loadingNextPage={loadingNextPage}
+        loadingAllMarkers={loadingAllMarkers}
+        markerCountReachedLimit={markerCountReachedLimit}
         onNextPage={handleNextPage}
         pagination={pagination}
       />

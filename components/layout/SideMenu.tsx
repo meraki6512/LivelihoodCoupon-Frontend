@@ -20,6 +20,7 @@ import SearchResultItem from '../search/SearchResultItem';
 interface SideMenuProps {
   isOpen: boolean;
   searchResults: SearchResult[];
+  allMarkers: SearchResult[];
   onSelectResult: (item: SearchResult) => void;
   isLoading: boolean;
   errorMsg: string | null;
@@ -31,6 +32,8 @@ interface SideMenuProps {
   searchOptions: SearchOptionsType;
   setSearchOptions: (options: Partial<SearchOptionsType>) => void;
   loadingNextPage: boolean;
+  loadingAllMarkers: boolean;
+  markerCountReachedLimit: boolean;
   onNextPage: () => void;
   pagination: Omit<PageResponse<any>, 'content'> | null;
 }
@@ -38,6 +41,7 @@ interface SideMenuProps {
 const SideMenu: React.FC<SideMenuProps> = ({ 
   isOpen, 
   searchResults, 
+  allMarkers,
   onSelectResult, 
   isLoading, 
   errorMsg, 
@@ -49,6 +53,8 @@ const SideMenu: React.FC<SideMenuProps> = ({
   searchOptions,
   setSearchOptions,
   loadingNextPage,
+  loadingAllMarkers,
+  markerCountReachedLimit,
   onNextPage,
   pagination,
 }) => {
@@ -92,7 +98,19 @@ const SideMenu: React.FC<SideMenuProps> = ({
       />
       <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
       {pagination && searchResults.length > 0 && (
-        <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>
+        <View style={styles.resultCountContainer}>
+          <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>
+          {loadingAllMarkers && (
+            <Text style={styles.markerStatusText}>
+              (전체 마커 로딩중...)
+            </Text>
+          )}
+          {markerCountReachedLimit && (
+            <Text style={styles.markerStatusText}>
+              (지도에 {allMarkers.length}개만 표시)
+            </Text>
+          )}
+        </View>
       )}
       {renderContent()}
     </Animated.View>
@@ -163,12 +181,19 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: '#6c757d',
   },
-  resultCountText: {
-    textAlign: 'right',
-    fontSize: 14,
-    color: '#6c757d',
+  resultCountContainer: {
+    alignItems: 'flex-end',
     marginBottom: 10,
     marginRight: 5,
+  },
+  resultCountText: {
+    fontSize: 14,
+    color: '#6c757d',
+  },
+  markerStatusText: {
+    fontSize: 12,
+    color: '#868e96',
+    marginTop: 2,
   },
 });
 

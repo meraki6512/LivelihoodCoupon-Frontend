@@ -172,10 +172,9 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   style,
 }) => {
   const webViewRef = useRef<WebView>(null);
-  const markerLoadTimer = useRef<NodeJS.Timeout | null>(null);
+  const updateTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isMapApiReady, setIsMapApiReady] = useState(false);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
-  const [isInitialMarkersLoaded, setIsInitialMarkersLoaded] = useState(false);
 
   const htmlContent = useMemo(() => {
     return kakaoMapWebViewHtml.replace(
@@ -214,12 +213,24 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
     }
   }, [isMapInitialized, latitude, longitude, htmlContent]);
 
-  // Effect for updating markers when markers prop changes
+  // Effect for updating markers when markers prop changes (Debounced)
   useEffect(() => {
-    if (webViewRef.current && htmlContent && isMapInitialized) {
-      const script = `updateMarkers(${JSON.stringify(markers || [])}); true;`;
-      webViewRef.current.injectJavaScript(script);
+    if (updateTimeout.current) {
+      clearTimeout(updateTimeout.current);
     }
+
+    updateTimeout.current = setTimeout(() => {
+      if (webViewRef.current && htmlContent && isMapInitialized) {
+        const script = `updateMarkers(${JSON.stringify(markers || [])}); true;`;
+        webViewRef.current.injectJavaScript(script);
+      }
+    }, 200); // 200ms debounce
+
+    return () => {
+      if (updateTimeout.current) {
+        clearTimeout(updateTimeout.current);
+      }
+    };
   }, [markers, htmlContent, isMapInitialized]);
 
   if (!htmlContent) {

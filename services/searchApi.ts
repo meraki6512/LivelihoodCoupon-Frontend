@@ -29,8 +29,6 @@ export const searchPlaces = async (
   userLng: number, // 사용자 실제 경도
 ): Promise<PageResponse<SearchResult>> => {
   try {
-    console.log("백엔드 API 검색 요청:", { query, lat, lng, radius, sort, page });
-
     const response = await apiClient.get<ApiResponse<PageResponse<SearchResult>>>('/api/search', {
       params: {
         query,
@@ -54,11 +52,9 @@ export const searchPlaces = async (
       throw new Error('Search results data not found');
     }
     
-    console.log("백엔드 API 검색 성공:", payload.data);
     return payload.data;
 
   } catch (error) {
-    console.error("장소 검색 실패:", error);
     if (axios.isAxiosError(error)) {
       throw new Error(error.response?.data?.error?.message || 'An unknown error occurred');
     }

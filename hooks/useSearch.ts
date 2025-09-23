@@ -67,8 +67,6 @@ export const useSearch = (): UseSearchResult => {
         hasNext = !result.isLast;
         currentPage++;
 
-        console.log(`Page ${currentPage - 1} fetched. hasNext: ${hasNext}`);
-
       } catch (e) {
         console.error(`Error fetching page ${currentPage} for markers:`, e);
         hasNext = false; // Stop on error

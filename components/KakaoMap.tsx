@@ -19,6 +19,8 @@ import { styles } from "./KakaoMap.styles";
     const mapInstance = useRef<any>(null);
     const clustererInstance = useRef<any>(null);
     const infowindowInstance = useRef<any>(null); // Single infowindow instance
+    const userLocationMarkerInstance = useRef<any>(null);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     // Effect for initial map creation
     useEffect(() => {
@@ -45,6 +47,7 @@ import { styles } from "./KakaoMap.styles";
         });
 
         infowindowInstance.current = new window.kakao.maps.InfoWindow({ disableAutoPan: true });
+        setIsMapReady(true); // Map is ready
       }
     }, [isLoaded, mapRef.current, latitude, longitude]);
 
@@ -58,9 +61,15 @@ import { styles } from "./KakaoMap.styles";
 
     // Effect for updating markers
     useEffect(() => {
-      if (mapInstance.current && clustererInstance.current) {
+      if (isMapReady && mapInstance.current && clustererInstance.current) {
+        // Clear clustered markers
         clustererInstance.current.clear();
         infowindowInstance.current?.close();
+
+        // Clear previous user location marker if it exists
+        if (userLocationMarkerInstance.current) {
+          userLocationMarkerInstance.current.setMap(null);
+        }
 
         // Helper function to get marker image based on type
         const getMarkerImage = (type?: string) => {
@@ -77,8 +86,27 @@ import { styles } from "./KakaoMap.styles";
           return new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
         };
 
-        if (markers && markers.length > 0) {
-          const kakaoMarkers = markers.map((markerData) => {
+        const userLocationMarkerData = markers?.find(m => m.markerType === 'userLocation');
+        const placeMarkersData = markers?.filter(m => m.markerType !== 'userLocation');
+
+        // Handle user location marker
+        if (userLocationMarkerData) {
+          const markerPosition = new window.kakao.maps.LatLng(
+            userLocationMarkerData.lat,
+            userLocationMarkerData.lng
+          );
+          const marker = new window.kakao.maps.Marker({
+            position: markerPosition,
+            image: getMarkerImage(userLocationMarkerData.markerType),
+            zIndex: 101 // Ensure it's on top
+          });
+          marker.setMap(mapInstance.current);
+          userLocationMarkerInstance.current = marker; // Save instance
+        }
+
+        // Handle place markers with clusterer
+        if (placeMarkersData && placeMarkersData.length > 0) {
+          const kakaoMarkers = placeMarkersData.map((markerData) => {
             const markerPosition = new window.kakao.maps.LatLng(
               markerData.lat,
               markerData.lng
@@ -111,7 +139,7 @@ import { styles } from "./KakaoMap.styles";
           clustererInstance.current.addMarkers(kakaoMarkers);
         }
       }
-    }, [markers]);
+    }, [isMapReady, markers]);
 
   if (scriptError) {
     return (

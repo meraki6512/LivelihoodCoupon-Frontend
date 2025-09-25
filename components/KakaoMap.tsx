@@ -1,3 +1,12 @@
+const debounce = (func: Function, delay: number) => {
+  let timeout: NodeJS.Timeout;
+  return function (...args: any[]) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+};
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Platform, ViewStyle, Text } from "react-native";
 import { WebView } from "react-native-webview";
@@ -34,11 +43,13 @@ import { styles } from "./KakaoMap.styles";
         const map = new window.kakao.maps.Map(mapContainer, mapOption);
         mapInstance.current = map;
 
-        window.kakao.maps.event.addListener(map, "center_changed", function () {
+        const debouncedOnMapCenterChange = debounce(() => {
           const latlng = map.getCenter();
           onMapCenterChange &&
             onMapCenterChange(latlng.getLat(), latlng.getLng());
-        });
+        }, 300); // 300ms debounce
+
+        window.kakao.maps.event.addListener(map, "center_changed", debouncedOnMapCenterChange);
 
         clustererInstance.current = new window.kakao.maps.MarkerClusterer({
           map: map,

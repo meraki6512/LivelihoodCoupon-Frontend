@@ -24,6 +24,7 @@ interface CustomBottomSheetProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSearch: () => void;
+  onSearchNearMe: () => void; // Add this prop
   searchResults: SearchResult[];
   allMarkers: SearchResult[];
   isLoading: boolean;
@@ -44,6 +45,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   searchQuery,
   setSearchQuery,
   onSearch,
+  onSearchNearMe, // Destructure the new prop
   searchResults,
   allMarkers,
   isLoading,
@@ -124,6 +126,10 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       {isOpen && (
         <View style={styles.contentContainer}>
           <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
+          <TouchableOpacity onPress={onSearchNearMe} style={styles.searchNearMeButton}>
+            <Ionicons name="locate-outline" size={20} color="#fff" />
+            <Text style={styles.searchNearMeButtonText}>내 주변 검색</Text>
+          </TouchableOpacity>
           {showSearchOptions && (
             <SearchOptionsComponent searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
           )}
@@ -207,6 +213,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#868e96',
     marginTop: 2,
+  },
+  searchNearMeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    borderRadius: 5,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  searchNearMeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
 

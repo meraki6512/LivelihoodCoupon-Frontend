@@ -30,6 +30,7 @@ interface HomeWebLayoutProps {
   isLoading: boolean;
   errorMsg: string | null;
   onSearch: () => Promise<void>;
+  onSearchNearMe: () => Promise<void>; // Add this prop
   onSelectResult: (item: SearchResult) => void;
   searchOptions: SearchOptions;
   setSearchOptions: (options: Partial<SearchOptions>) => void;
@@ -57,6 +58,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   isLoading,
   errorMsg,
   onSearch,
+  onSearchNearMe, // Destructure the new prop
   onSelectResult,
   searchOptions,
   setSearchOptions,
@@ -87,6 +89,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSearch={onSearch}
+          onSearchNearMe={onSearchNearMe} // Pass the new prop to SideMenu
           searchOptions={searchOptions}
           setSearchOptions={setSearchOptions}
           loadingNextPage={loadingNextPage}

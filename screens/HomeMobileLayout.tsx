@@ -3,8 +3,10 @@ import {
   View,
   Text,
   ActivityIndicator,
-  SafeAreaView,
+  TouchableOpacity, // Add this import
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context'; // Change this import
+import { Ionicons } from '@expo/vector-icons'; // Add this import
 import KakaoMap from "../components/KakaoMap";
 import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import Header from "../components/layout/Header";
@@ -30,6 +32,7 @@ interface HomeMobileLayoutProps {
   isLoading: boolean;
   errorMsg: string | null;
   onSearch: () => Promise<void>;
+  onSearchNearMe: () => Promise<void>; // Add this prop
   onSelectResult: (item: SearchResult) => void;
   searchOptions: SearchOptions;
   setSearchOptions: (options: Partial<SearchOptions>) => void;
@@ -56,6 +59,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   isLoading,
   errorMsg,
   onSearch,
+  onSearchNearMe, // Destructure the new prop
   onSelectResult,
   searchOptions,
   setSearchOptions,
@@ -82,6 +86,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={onSearch}
+        onSearchNearMe={onSearchNearMe} // Pass the new prop
         searchResults={searchResults}
         allMarkers={allMarkers}
         isLoading={isLoading}
@@ -101,16 +106,18 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
       )}
 
       {mapCenter ? (
-        <KakaoMap
-          latitude={mapCenter.latitude}
-          longitude={mapCenter.longitude}
-          style={mobileStyles.mapFullScreen}
-          markers={markers}
-          onMapCenterChange={(lat, lng) =>
-            setMapCenter({ latitude: lat, longitude: lng })
-          }
-          onMarkerPress={(id) => id && setSelectedPlaceId(id)}
-        />
+        <>
+          <KakaoMap
+            latitude={mapCenter.latitude}
+            longitude={mapCenter.longitude}
+            style={mobileStyles.mapFullScreen}
+            markers={markers}
+            onMapCenterChange={(lat, lng) =>
+              setMapCenter({ latitude: lat, longitude: lng })
+            }
+            onMarkerPress={(id) => id && setSelectedPlaceId(id)}
+          />
+        </>
       ) : (
         <View style={mobileStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#0000ff" />

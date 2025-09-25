@@ -97,6 +97,21 @@ export default function Home() {
     setBottomSheetOpen(true); // 검색 후 하단 시트 열기
   }, [mapCenter, location, performSearch]);
 
+  /**
+   * 현재 위치를 기준으로 검색을 수행하는 핸들러
+   */
+  const handleSearchNearMe = useCallback(async () => {
+    Keyboard.dismiss();
+    if (!location) {
+      alert("현재 위치 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+    // 현재 위치를 기준으로 검색을 수행
+    await performSearch(location.latitude, location.longitude, location.latitude, location.longitude);
+    setMapCenter({ latitude: location.latitude, longitude: location.longitude }); // Update map center
+    setBottomSheetOpen(true); // 검색 후 하단 시트 열기
+  }, [location, performSearch]);
+
   const handleNextPage = useCallback(async () => {
     if (!mapCenter) return;
     if (!location) {
@@ -158,6 +173,7 @@ export default function Home() {
         isLoading={isLoading}
         errorMsg={errorMsg}
         onSearch={handleSearch}
+        onSearchNearMe={handleSearchNearMe} // Add this prop
         onSelectResult={handleSelectResult}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
@@ -186,6 +202,7 @@ export default function Home() {
         isLoading={isLoading}
         errorMsg={errorMsg}
         onSearch={handleSearch}
+        onSearchNearMe={handleSearchNearMe} // Add this prop
         onSelectResult={handleSelectResult}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}

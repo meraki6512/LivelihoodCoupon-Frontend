@@ -12,9 +12,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import SearchBar from '../search/SearchBar';
-import { SearchResult } from '../../types/search';
+import { SearchResult, SearchOptions } from '../../types/search';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import SearchOptions from './SearchOptions';
+import SearchOptionsComponent from './SearchOptionsComponent';
 import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from './SearchResultItem';
@@ -126,7 +126,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
         <View style={styles.contentContainer}>
           <SearchBar style={{ flex: 1 }} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
           {showSearchOptions && (
-            <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
+            <SearchOptionsComponent searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
           )}
           {pagination && searchResults.length > 0 && (
             <View style={styles.resultCountContainer}>
@@ -211,4 +211,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CustomBottomSheet;
+export default React.memo(CustomBottomSheet);

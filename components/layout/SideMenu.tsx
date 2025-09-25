@@ -12,7 +12,7 @@ import {
 import { SearchResult } from '../../types/search';
 import SearchBar from '../search/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
-import SearchOptions from '../search/SearchOptions';
+import SearchOptionsComponent from '../search/SearchOptionsComponent';
 import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from '../search/SearchResultItem';
@@ -96,7 +96,7 @@ const SideMenu: React.FC<SideMenuProps> = ({
         setSearchQuery={setSearchQuery}
         onSearch={onSearch}
       />
-      <SearchOptions searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
+      <SearchOptionsComponent searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
       {pagination && searchResults.length > 0 && (
         <View style={styles.resultCountContainer}>
           <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>
@@ -197,4 +197,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SideMenu;
+export default React.memo(SideMenu);

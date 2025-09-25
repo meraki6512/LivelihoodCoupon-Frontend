@@ -1,15 +1,7 @@
 import { useReducer, useCallback } from "react";
 import { searchPlaces } from "../services/searchApi";
-import { SearchResult } from "../types/search";
+import { SearchResult, SearchOptions } from "../types/search";
 import { PageResponse } from "../types/api";
-
-// --- 1. 타입 정의 ---
-
-export interface SearchOptions {
-  radius: number;
-  sort: string;
-}
-
 interface SearchState {
   searchQuery: string;
   searchOptions: SearchOptions;

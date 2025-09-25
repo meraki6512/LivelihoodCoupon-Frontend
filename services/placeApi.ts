@@ -1,11 +1,7 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 import { PlaceDetail } from '../types/place';
 import { ApiResponse } from '../types/api';
-import { API_BASE_URL } from '@env';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-});
+import { ApiError } from '../utils/errors';
 
 /**
  * 장소 ID로 상세 정보를 가져오는 함수
@@ -22,10 +18,10 @@ export async function getPlaceDetailsById(placeId: string): Promise<PlaceDetail>
   
   // API 응답 검증
   if (!payload || payload.success === false) {
-    throw new Error(payload?.error?.message || 'Failed to fetch place details');
+    throw new ApiError(payload?.error?.message || 'Failed to fetch place details', res.status, payload?.error);
   }
   if (!payload.data) {
-    throw new Error('Place details not found');
+    throw new ApiError('Place details not found', res.status);
   }
   
   return payload.data;

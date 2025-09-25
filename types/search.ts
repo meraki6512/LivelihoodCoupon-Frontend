@@ -13,3 +13,8 @@ export type SearchResult = {
   placeUrl: string;
   distance: number;
 };
+
+export interface SearchOptions {
+  radius: number;
+  sort: string;
+}

@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
+import { SearchOptions } from '../../types/search';
 import CustomRadiusSlider from './CustomRadiusSlider';
 
 interface Props {
-  searchOptions: SearchOptionsType;
-  setSearchOptions: (options: Partial<SearchOptionsType>) => void;
+  searchOptions: SearchOptions;
+  setSearchOptions: (options: Partial<SearchOptions>) => void;
 }
 
-const SearchOptions: React.FC<Props> = ({ searchOptions, setSearchOptions }) => {
+const SearchOptionsComponent: React.FC<Props> = ({ searchOptions, setSearchOptions }) => {
   return (
     <View style={styles.container}>
       <View style={styles.optionGroup}>
@@ -79,4 +79,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SearchOptions;
+export default SearchOptionsComponent;

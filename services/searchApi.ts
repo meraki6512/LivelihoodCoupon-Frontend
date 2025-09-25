@@ -1,11 +1,7 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 import { SearchResult } from '../types/search';
 import { ApiResponse, PageResponse } from '../types/api';
-import { API_BASE_URL } from '@env';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-});
+import { ApiError } from '../utils/errors';
 
 /**
  * 백엔드 API를 통해 장소를 검색하는 함수
@@ -45,19 +41,19 @@ export const searchPlaces = async (
     const payload = response.data;
 
     if (!payload || !payload.success) {
-      throw new Error(payload?.error?.message || 'Failed to search places');
+      throw new ApiError(payload?.error?.message || 'Failed to search places', response.status, payload?.error);
     }
 
     if (!payload.data) {
-      throw new Error('Search results data not found');
+      throw new ApiError('Search results data not found', response.status);
     }
     
     return payload.data;
 
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      throw new Error(error.response?.data?.error?.message || 'An unknown error occurred');
+      throw new ApiError(error.response?.data?.error?.message || 'An unknown error occurred', error.response?.status || 500, error.response?.data?.error);
     }
-    throw new Error('An unknown error occurred during search');
+    throw new ApiError('An unknown error occurred during search', 500);
   }
 };

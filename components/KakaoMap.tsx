@@ -15,6 +15,7 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { styles } from "./KakaoMap.styles";
+import { MARKER_IMAGES } from "../constants/mapConstants";
 
   const WebKakaoMap = ({
     latitude,
@@ -86,10 +87,10 @@ import { styles } from "./KakaoMap.styles";
         const getMarkerImage = (type?: string) => {
           const imageSrc =
             type === "selected"
-              ? "https://velog.velcdn.com/images/daeng_ae/post/616c30b6-ec60-43a4-8df7-ae28ba3a1438/image.png" // 선택 마커
+              ? MARKER_IMAGES.SELECTED
               : type === "userLocation"
-              ? "https://velog.velcdn.com/images/daeng_ae/post/7ae477a1-4f89-4848-9089-7b0186b280cc/image.png" // 사용자 마커
-              : "https://velog.velcdn.com/images/daeng_ae/post/35b23de1-b1f3-458f-82f5-cbc1bc7c230d/image.png"; // 기본 마커
+              ? MARKER_IMAGES.USER_LOCATION
+              : MARKER_IMAGES.DEFAULT;
 
           const imageSize = new window.kakao.maps.Size(36, 36);
           const imageOption = { offset: new window.kakao.maps.Point(18, 36) };

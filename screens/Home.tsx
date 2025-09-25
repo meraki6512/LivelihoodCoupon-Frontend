@@ -1,31 +1,14 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
-  View,
-  Text,
-  ActivityIndicator,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
   Animated,
   Keyboard,
   Platform,
-  SafeAreaView,
-  StyleSheet,
 } from "react-native";
-import KakaoMap from "../components/KakaoMap";
-import { SearchResult } from "../types/search";
-import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useSearch } from "../hooks/useSearch";
-import { styles as mobileStyles } from "./Home.styles";
-import Header from "../components/layout/Header";
-import SideMenu from "../components/layout/SideMenu";
-import CustomBottomSheet from "../components/search/CustomBottomSheet";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-// 사이드메뉴 너비 상수
-const SIDEMENU_WIDTH = 350;
+import HomeWebLayout from "./HomeWebLayout";
+import HomeMobileLayout from "./HomeMobileLayout";
 
 /**
  * Home 컴포넌트
@@ -62,7 +45,6 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(true); // 사이드메뉴 열림/닫힘 상태
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false); // 모바일 하단 시트 상태
   const sideMenuAnimation = useRef(new Animated.Value(0)).current; // 사이드메뉴 애니메이션
-  const insets = useSafeAreaInsets(); // 안전 영역 정보
 
   // 지도 중심 좌표 상태
   const [mapCenter, setMapCenter] = useState<{
@@ -88,6 +70,7 @@ export default function Home() {
 
   // 사이드메뉴 애니메이션 처리
   useEffect(() => {
+    const SIDEMENU_WIDTH = 350; // 사이드메뉴 너비 상수
     Animated.timing(sideMenuAnimation, {
       toValue: isMenuOpen ? 0 : -SIDEMENU_WIDTH,
       duration: 300,
@@ -154,78 +137,26 @@ export default function Home() {
     ];
   }, [location, allMarkers, selectedPlaceId]);
 
-  /**
-   * 웹 레이아웃 렌더링
-   * 사이드메뉴와 지도를 나란히 배치하는 레이아웃
-   */
-  const renderWebLayout = () => (
-    <View style={webStyles.container}>
-      <Header />
-      <View style={webStyles.mainContainer}>
-        <SideMenu
-          isOpen={isMenuOpen}
-          searchResults={searchResults}
-          allMarkers={allMarkers}
-          onSelectResult={handleSelectResult}
-          isLoading={searchLoading}
-          errorMsg={errorMsg}
-          onToggle={() => setIsMenuOpen(!isMenuOpen)}
-          style={{ transform: [{ translateX: sideMenuAnimation }] }}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSearch={handleSearch}
-          searchOptions={searchOptions}
-          setSearchOptions={setSearchOptions}
-          loadingNextPage={loadingNextPage}
-          loadingAllMarkers={loadingAllMarkers}
-          markerCountReachedLimit={markerCountReachedLimit}
-          onNextPage={handleNextPage}
-          pagination={pagination}
-        />
-        <View style={webStyles.mapContainer}>
-          {mapCenter ? (
-            <KakaoMap
-              latitude={mapCenter.latitude}
-              longitude={mapCenter.longitude}
-              markers={markers}
-              onMapCenterChange={(lat, lng) =>
-                setMapCenter({ latitude: lat, longitude: lng })
-              }
-              onMarkerPress={(id) => id && setSelectedPlaceId(id)}
-            />
-          ) : (
-            <View style={webStyles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text>지도를 불러오는 중입니다...</Text>
-            </View>
-          )}
-        </View>
-      </View>
-      {selectedPlaceId && (
-        <PlaceDetailPanel placeId={selectedPlaceId} />
-      )}
-    </View>
-  );
-
-  /**
-   * 모바일 레이아웃 렌더링
-   * 전체 화면 지도와 하단 시트를 사용하는 레이아웃
-   */
-  const renderMobileLayout = () => (
-    <SafeAreaView style={mobileStyles.safeAreaContainer}>
-      <Header />
-      {errorMsg && <Text style={mobileStyles.errorText}>{errorMsg}</Text>}
-
-      <CustomBottomSheet
-        isOpen={bottomSheetOpen}
-        onToggle={() => setBottomSheetOpen(!bottomSheetOpen)}
+  // 플랫폼에 따라 적절한 레이아웃 렌더링
+  if (Platform.OS === 'web') {
+    return (
+      <HomeWebLayout
+        selectedPlaceId={selectedPlaceId}
+        setSelectedPlaceId={setSelectedPlaceId}
+        location={location}
+        mapCenter={mapCenter}
+        setMapCenter={setMapCenter}
+        markers={markers}
+        isMenuOpen={isMenuOpen}
+        setIsMenuOpen={setIsMenuOpen}
+        sideMenuAnimation={sideMenuAnimation}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
-        onSearch={handleSearch}
         searchResults={searchResults}
         allMarkers={allMarkers}
-        isLoading={searchLoading}
-        errorMsg={searchError}
+        isLoading={isLoading}
+        errorMsg={errorMsg}
+        onSearch={handleSearch}
         onSelectResult={handleSelectResult}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
@@ -235,55 +166,34 @@ export default function Home() {
         onNextPage={handleNextPage}
         pagination={pagination}
       />
-
-      {bottomSheetOpen && (
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: insets.bottom, backgroundColor: 'white', zIndex: 9 }} />
-      )}
-
-      {mapCenter ? (
-        <KakaoMap
-          latitude={mapCenter.latitude}
-          longitude={mapCenter.longitude}
-          style={mobileStyles.mapFullScreen}
-          markers={markers}
-          onMapCenterChange={(lat, lng) =>
-            setMapCenter({ latitude: lat, longitude: lng })
-          }
-          onMarkerPress={(id) => id && setSelectedPlaceId(id)}
-        />
-      ) : (
-        <View style={mobileStyles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text>지도를 불러오는 중입니다...</Text>
-        </View>
-      )}
-      {selectedPlaceId && (
-        <PlaceDetailPanel placeId={selectedPlaceId} />
-      )}
-    </SafeAreaView>
-  );
-
-  // 플랫폼에 따라 적절한 레이아웃 렌더링
-  return Platform.OS === 'web' ? renderWebLayout() : renderMobileLayout();
+    );
+  } else {
+    return (
+      <HomeMobileLayout
+        selectedPlaceId={selectedPlaceId}
+        setSelectedPlaceId={setSelectedPlaceId}
+        location={location}
+        mapCenter={mapCenter}
+        setMapCenter={setMapCenter}
+        markers={markers}
+        bottomSheetOpen={bottomSheetOpen}
+        setBottomSheetOpen={setBottomSheetOpen}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        searchResults={searchResults}
+        allMarkers={allMarkers}
+        isLoading={isLoading}
+        errorMsg={errorMsg}
+        onSearch={handleSearch}
+        onSelectResult={handleSelectResult}
+        searchOptions={searchOptions}
+        setSearchOptions={setSearchOptions}
+        loadingNextPage={loadingNextPage}
+        loadingAllMarkers={loadingAllMarkers}
+        markerCountReachedLimit={markerCountReachedLimit}
+        onNextPage={handleNextPage}
+        pagination={pagination}
+      />
+    );
+  }
 }
-
-// 웹용 스타일 정의
-const webStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  mainContainer: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  mapContainer: {
-    flex: 1,
-    height: '100%',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

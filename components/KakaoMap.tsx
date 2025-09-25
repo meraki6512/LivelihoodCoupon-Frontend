@@ -191,7 +191,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   const htmlContent = useMemo(() => {
     let content = kakaoMapWebViewHtml.replace(
       "KAKAO_MAP_JS_KEY_PLACEHOLDER",
-      `"${KAKAO_MAP_JS_KEY}"`
+      KAKAO_MAP_JS_KEY
     );
     content = content.replace("MARKER_IMAGE_SELECTED_PLACEHOLDER", MARKER_IMAGES.SELECTED);
     content = content.replace("MARKER_IMAGE_USER_LOCATION_PLACEHOLDER", MARKER_IMAGES.USER_LOCATION);

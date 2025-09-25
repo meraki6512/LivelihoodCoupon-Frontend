@@ -123,7 +123,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
       </TouchableOpacity>
       {isOpen && (
         <View style={styles.contentContainer}>
-          <SearchBar style={{ flex: 1 }} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
+          <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
           {showSearchOptions && (
             <SearchOptionsComponent searchOptions={searchOptions} setSearchOptions={setSearchOptions} />
           )}

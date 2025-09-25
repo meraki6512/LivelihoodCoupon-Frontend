@@ -1,4 +1,5 @@
 import apiClient from './apiClient';
+import axios from 'axios';
 import { SearchResult } from '../types/search';
 import { ApiResponse, PageResponse } from '../types/api';
 import { ApiError } from '../utils/errors';

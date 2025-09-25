@@ -85,6 +85,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         searchResults={searchResults}
         allMarkers={allMarkers}
         isLoading={isLoading}
+        errorMsg={errorMsg}
         onSelectResult={onSelectResult}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}

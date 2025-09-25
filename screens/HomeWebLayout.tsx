@@ -81,6 +81,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
           allMarkers={allMarkers}
           onSelectResult={onSelectResult}
           isLoading={isLoading}
+          errorMsg={errorMsg}
           onToggle={() => setIsMenuOpen(!isMenuOpen)}
           style={{ transform: [{ translateX: sideMenuAnimation }] }}
           searchQuery={searchQuery}

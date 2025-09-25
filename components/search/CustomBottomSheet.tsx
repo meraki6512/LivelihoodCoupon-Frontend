@@ -15,7 +15,6 @@ import SearchBar from '../search/SearchBar';
 import { SearchResult, SearchOptions } from '../../types/search';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchOptionsComponent from './SearchOptionsComponent';
-import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from './SearchResultItem';
 
@@ -28,10 +27,10 @@ interface CustomBottomSheetProps {
   searchResults: SearchResult[];
   allMarkers: SearchResult[];
   isLoading: boolean;
-  errorMsg: string | null;
+  errorMsg?: string | null; // Made optional
   onSelectResult: (item: SearchResult) => void;
-  searchOptions: SearchOptionsType;
-  setSearchOptions: (options: Partial<SearchOptionsType>) => void;
+  searchOptions: SearchOptions;
+  setSearchOptions: (options: Partial<SearchOptions>) => void;
   loadingNextPage: boolean;
   loadingAllMarkers: boolean;
   markerCountReachedLimit: boolean;

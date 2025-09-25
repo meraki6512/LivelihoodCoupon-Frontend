@@ -1,6 +1,6 @@
-const debounce = (func: Function, delay: number) => {
+const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => {
   let timeout: NodeJS.Timeout;
-  return function (...args: any[]) {
+  return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
     const context = this;
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(context, args), delay);
@@ -189,10 +189,14 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   const [isMapInitialized, setIsMapInitialized] = useState(false);
 
   const htmlContent = useMemo(() => {
-    return kakaoMapWebViewHtml.replace(
+    let content = kakaoMapWebViewHtml.replace(
       "KAKAO_MAP_JS_KEY_PLACEHOLDER",
-      KAKAO_MAP_JS_KEY
+      `"${KAKAO_MAP_JS_KEY}"`
     );
+    content = content.replace("MARKER_IMAGE_SELECTED_PLACEHOLDER", MARKER_IMAGES.SELECTED);
+    content = content.replace("MARKER_IMAGE_USER_LOCATION_PLACEHOLDER", MARKER_IMAGES.USER_LOCATION);
+    content = content.replace("MARKER_IMAGE_DEFAULT_PLACEHOLDER", MARKER_IMAGES.DEFAULT);
+    return content;
   }, [KAKAO_MAP_JS_KEY]);
 
   // Effect to initialize map when API is ready and map is not yet initialized

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 /**
@@ -11,15 +11,16 @@ interface SearchBarProps {
   onSearch: () => void; // 검색 실행 핸들러
   showSearchOptions?: boolean; // 검색 옵션 표시 여부
   onToggleSearchOptions?: () => void; // 검색 옵션 토글 핸들러
+  style?: ViewStyle; // 추가적인 스타일
 }
 
 /**
  * SearchBar 컴포넌트
  * 검색 입력 필드와 검색 버튼을 제공하는 재사용 가능한 컴포넌트
  */
-const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery, onSearch, showSearchOptions, onToggleSearchOptions }) => {
+const SearchBar: React.FC<SearchBarProps> = ({ searchQuery, setSearchQuery, onSearch, showSearchOptions, onToggleSearchOptions, style }) => {
   return (
-    <View style={styles.searchContainer}>
+    <View style={[styles.searchContainer, style]}>
       <TextInput
         style={styles.searchInput}
         placeholder="장소를 검색하세요..."

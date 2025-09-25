@@ -9,11 +9,10 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { SearchResult } from '../../types/search';
+import { SearchResult, SearchOptions } from '../../types/search';
 import SearchBar from '../search/SearchBar';
 import { Ionicons } from '@expo/vector-icons';
 import SearchOptionsComponent from '../search/SearchOptionsComponent';
-import { SearchOptions as SearchOptionsType } from '../../hooks/useSearch';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from '../search/SearchResultItem';
 
@@ -23,14 +22,14 @@ interface SideMenuProps {
   allMarkers: SearchResult[];
   onSelectResult: (item: SearchResult) => void;
   isLoading: boolean;
-  errorMsg: string | null;
+  errorMsg?: string | null; // Made optional
   onToggle: () => void;
   style: any;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSearch: () => void;
-  searchOptions: SearchOptionsType;
-  setSearchOptions: (options: Partial<SearchOptionsType>) => void;
+  searchOptions: SearchOptions;
+  setSearchOptions: (options: Partial<SearchOptions>) => void;
   loadingNextPage: boolean;
   loadingAllMarkers: boolean;
   markerCountReachedLimit: boolean;

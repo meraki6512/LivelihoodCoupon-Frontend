@@ -9,6 +9,7 @@ import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useSearch } from "../hooks/useSearch";
 import HomeWebLayout from "./HomeWebLayout";
 import HomeMobileLayout from "./HomeMobileLayout";
+import { SearchResult } from "../types/search";
 
 /**
  * Home 컴포넌트

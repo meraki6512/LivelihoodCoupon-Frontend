@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -99,7 +99,7 @@ export default function Home() {
    * 검색 실행 핸들러
    * 키보드를 닫고 현재 지도 중심 좌표를 기준으로 검색을 수행합니다.
    */
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     Keyboard.dismiss();
     if (!mapCenter) {
       alert("지도 중심 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
@@ -111,28 +111,28 @@ export default function Home() {
     }
     await performSearch(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
     setBottomSheetOpen(true); // 검색 후 하단 시트 열기
-  };
+  }, [mapCenter, location, performSearch]);
 
-  const handleNextPage = async () => {
+  const handleNextPage = useCallback(async () => {
     if (!mapCenter) return;
     if (!location) {
       alert("현재 위치 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
       return;
     }
     await fetchNextPage(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
-  };
+  }, [mapCenter, location, fetchNextPage]);
 
   /**
    * 검색 결과 선택 핸들러
    * 선택된 장소로 지도를 이동하고 상세 정보를 표시합니다.
    */
-  const handleSelectResult = (item: SearchResult) => {
+  const handleSelectResult = useCallback((item: SearchResult) => {
     setMapCenter({ latitude: item.lat, longitude: item.lng });
     if (item.placeId) {
       setSelectedPlaceId(item.placeId);
     }
     setBottomSheetOpen(false); // 결과 선택 후 하단 시트 닫기
-  };
+  }, [setSelectedPlaceId]);
 
   // 로딩 및 에러 상태 계산
   const isLoading = locationLoading || searchLoading;

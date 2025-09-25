@@ -175,37 +175,60 @@ export const useSearch = () => {
   }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
 
   const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-    if (!state.pagination || state.pagination.isLast || state.loadingAllMarkers) {
+    if (!state.pagination || state.loadingAllMarkers) {
       return;
     }
     dispatch({ type: 'START_ALL_MARKERS_LOAD' });
-    let currentPage = state.pagination.currentPage + 1;
-    let hasNext = !state.pagination.isLast;
-    let limitReached = false;
+
     const MAX_PAGES_FOR_MARKERS = 10;
+    const startPage = state.pagination.currentPage + 1;
+    const pagePromises: Promise<PageResponse<SearchResult>>[] = [];
 
-    while (hasNext && currentPage <= MAX_PAGES_FOR_MARKERS) {
-      try {
-        const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, currentPage, userLatitude, userLongitude);
-        
-        dispatch({ type: 'APPEND_MARKERS', payload: resultsData.content });
+    for (let i = 0; i < MAX_PAGES_FOR_MARKERS; i++) {
+      const pageNum = startPage + i;
+      // If we already know it's the last page, no need to fetch further
+      if (state.pagination.isLast && i > 0) break;
 
-        // If results are less than page size, it must be the last page.
-        if (resultsData.content.length < 10) {
-          hasNext = false;
-        }
-
-        if (resultsData.isLast) {
-          hasNext = false;
-        }
-        currentPage++;
-      } catch (err) {
-        console.error(`Error fetching page ${currentPage} for markers:`, err);
-        hasNext = false;
-      }
+      pagePromises.push(
+        searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, pageNum, userLatitude, userLongitude)
+      );
     }
 
-    limitReached = hasNext;
+    let limitReached = false;
+    try {
+      const results = await Promise.allSettled(pagePromises);
+      let allNewMarkers: SearchResult[] = [];
+      let lastPageFetched = state.pagination.currentPage;
+
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') {
+          const pageData = result.value;
+          allNewMarkers = [...allNewMarkers, ...pageData.content];
+          lastPageFetched = Math.max(lastPageFetched, startPage + index);
+          if (pageData.isLast) {
+            limitReached = false; // Reached natural end, not artificial limit
+          }
+        } else {
+          console.error(`Error fetching page ${startPage + index} for markers:`, result.reason);
+        }
+      });
+
+      dispatch({ type: 'APPEND_MARKERS', payload: allNewMarkers });
+
+      // Determine if the limit was reached based on how many pages we actually tried to fetch
+      // and if the last one was not the actual last page from the API.
+      if (results.length === MAX_PAGES_FOR_MARKERS && !limitReached) {
+        // If we tried to fetch MAX_PAGES_FOR_MARKERS and none of them indicated isLast, then limit was reached
+        const lastResult = results[results.length - 1];
+        if (lastResult.status === 'fulfilled' && !lastResult.value.isLast) {
+          limitReached = true;
+        }
+      }
+
+    } catch (err) {
+      console.error("Error fetching all markers in parallel:", err);
+      limitReached = true; // Assume limit reached on error
+    }
 
     dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached } });
   }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers]);

@@ -45,6 +45,8 @@ interface HomeMobileLayoutProps {
   markerCountReachedLimit: boolean;
   onNextPage: () => Promise<void>;
   pagination: Omit<PageResponse<any>, 'content'> | null;
+  onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
+  onOpenSidebar?: () => void;
 }
 
 const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
@@ -76,6 +78,8 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   markerCountReachedLimit,
   onNextPage,
   pagination,
+  onSetRouteLocation,
+  onOpenSidebar,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -129,6 +133,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             selectedMarkerLat={selectedMarkerPosition?.lat}
             selectedMarkerLng={selectedMarkerPosition?.lng}
             onCloseInfoWindow={() => setShowInfoWindow(false)}
+            onSetRouteLocation={onSetRouteLocation}
           />
         </>
       ) : (

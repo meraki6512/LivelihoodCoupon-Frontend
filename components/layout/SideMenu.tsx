@@ -41,6 +41,9 @@ interface SideMenuProps {
     markerCountReachedLimit: boolean;
     onNextPage: () => void;
     pagination: Omit<PageResponse<any>, 'content'> | null;
+    // 길찾기 연동을 위한 새로운 props
+    onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
+    onOpenSidebar?: () => void; // 사이드바 열기 함수
   }
   
   const SideMenu: React.FC<SideMenuProps> = ({
@@ -63,6 +66,8 @@ interface SideMenuProps {
     markerCountReachedLimit,
     onNextPage,
     pagination,
+    onSetRouteLocation, // 새로운 prop 추가
+    onOpenSidebar, // 사이드바 열기 함수 추가
   }) => {
     const [activeTab, setActiveTab] = useState<'search' | 'route'>('search');
     const [startLocation, setStartLocation] = useState('내 위치');
@@ -88,6 +93,60 @@ interface SideMenuProps {
   
   // 교통수단 선택 상태
   const [selectedTransportMode, setSelectedTransportMode] = useState<'car' | 'transit' | 'walking' | 'bicycle'>('walking');
+
+  // InfoWindow에서 길찾기 위치 설정 함수
+  const handleSetRouteLocationInternal = (type: 'departure' | 'arrival', placeInfo: SearchResult) => {
+    console.log('길찾기 탭으로 전환 시작, 현재 탭:', activeTab);
+    console.log('사이드바 열림 상태:', isOpen);
+    console.log('onOpenSidebar 함수 존재:', !!onOpenSidebar);
+    
+    // InfoWindow에서 길찾기 선택 시 항상 사이드바 열기
+    console.log('사이드바 강제 열기');
+    if (onOpenSidebar) {
+      onOpenSidebar();
+    } else {
+      onToggle();
+    }
+    
+    // 길찾기 탭으로 전환
+    setActiveTab('route');
+    
+    // 선택된 타입에 따라 출발지 또는 목적지 설정
+    if (type === 'departure') {
+      console.log('출발지 설정:', placeInfo.placeName);
+      setStartLocation(placeInfo.placeName);
+      setLastSelectedStartLocation(placeInfo.placeName);
+    } else {
+      console.log('목적지 설정:', placeInfo.placeName);
+      setEndLocation(placeInfo.placeName);
+      // 도착지 설정 시 출발지가 비어있으면 "내 위치"로 설정
+      if (!startLocation || startLocation.trim() === '') {
+        console.log('출발지가 비어있어서 "내 위치"로 설정');
+        setStartLocation('내 위치');
+        setLastSelectedStartLocation('내 위치');
+      }
+    }
+    
+    // 검색 결과 리스트 숨기기
+    setShowStartResults(false);
+    setShowEndResults(false);
+    
+    console.log(`${type} 설정 완료:`, placeInfo.placeName);
+  };
+
+  // 외부에서 호출되는 길찾기 위치 설정 함수 (prop으로 받은 함수 사용)
+  useEffect(() => {
+    // 전역 함수로 등록하여 KakaoMap에서 호출할 수 있도록 함
+    (window as any).setRouteLocationFromInfoWindow = (type: 'departure' | 'arrival', placeInfo: SearchResult) => {
+      console.log('전역 함수 호출됨:', type, placeInfo);
+      handleSetRouteLocationInternal(type, placeInfo);
+      if (onSetRouteLocation) {
+        onSetRouteLocation(type, placeInfo);
+      }
+    };
+    
+    console.log('전역 함수 등록됨:', (window as any).setRouteLocationFromInfoWindow);
+  }, [onSetRouteLocation]);
   
   // 디바운스를 위한 타이머 참조
   const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1050,7 +1109,7 @@ interface SideMenuProps {
       borderRadius: 8,
       marginTop: 0,
       marginBottom: 36,
-      marginHorizontal: 16, // 교통수단 아이콘과 같은 패딩
+      marginHorizontal: 12, // 교통수단 아이콘과 같은 패딩
     },
     routeButtonDisabled: {
       backgroundColor: '#6c757d',

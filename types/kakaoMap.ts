@@ -31,4 +31,5 @@ export type KakaoMapProps = {
   selectedMarkerLat?: number; // 선택된 마커의 위도
   selectedMarkerLng?: number; // 선택된 마커의 경도
   onCloseInfoWindow?: () => void; // InfoWindow 닫기 콜백
+  onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: any) => void; // 길찾기 위치 설정 콜백
 };

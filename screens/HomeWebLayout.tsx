@@ -42,6 +42,8 @@ interface HomeWebLayoutProps {
   markerCountReachedLimit: boolean;
   onNextPage: () => Promise<void>;
   pagination: Omit<PageResponse<any>, 'content'> | null;
+  onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
+  onOpenSidebar?: () => void;
 }
 
 const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
@@ -74,6 +76,8 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   markerCountReachedLimit,
   onNextPage,
   pagination,
+  onSetRouteLocation,
+  onOpenSidebar,
 }) => {
   return (
     <View style={webStyles.container}>
@@ -104,6 +108,8 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
           markerCountReachedLimit={markerCountReachedLimit}
           onNextPage={onNextPage}
           pagination={pagination}
+          onSetRouteLocation={onSetRouteLocation}
+          onOpenSidebar={onOpenSidebar}
         />
         <View style={webStyles.mapContainer}>
           {mapCenter ? (
@@ -120,6 +126,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
               selectedMarkerLat={selectedMarkerPosition?.lat}
               selectedMarkerLng={selectedMarkerPosition?.lng}
               onCloseInfoWindow={() => setShowInfoWindow(false)}
+              onSetRouteLocation={onSetRouteLocation}
             />
           ) : (
             <View style={webStyles.loadingContainer}>

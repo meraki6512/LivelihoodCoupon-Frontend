@@ -28,6 +28,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     selectedMarkerLat,
     selectedMarkerLng,
     onCloseInfoWindow,
+    onSetRouteLocation,
   }: KakaoMapProps) => {
     const { isLoaded, error: scriptError } = useKakaoMapScript();
     const mapRef = useRef<HTMLDivElement>(null);
@@ -403,17 +404,58 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
         // 드롭다운 옵션 선택 함수
         (window as any).selectRouteOption = (option: 'departure' | 'arrival') => {
           console.log('Route option selected:', option, 'for place:', selectedPlaceId);
-          // 여기에 길찾기 로직을 추가할 예정
+          console.log('Selected marker:', selectedMarker);
           
-          // 드롭다운 닫기
-          const dropdown = document.getElementById('routeDropdown');
-          if (dropdown) {
-            dropdown.style.display = 'none';
-          }
-          
-          // InfoWindow 닫기
-          if (onCloseInfoWindow) {
-            onCloseInfoWindow();
+          // 선택된 장소 정보를 SearchResult 형태로 변환
+          if (selectedMarker) {
+            const placeInfo = {
+              placeId: selectedMarker.placeId,
+              placeName: selectedMarker.placeName,
+              roadAddress: selectedMarker.roadAddress || '',
+              lotAddress: selectedMarker.lotAddress || '',
+              lat: selectedMarker.lat,
+              lng: selectedMarker.lng,
+              phone: selectedMarker.phone || '',
+              categoryGroupName: selectedMarker.categoryGroupName || '',
+              placeUrl: selectedMarker.placeUrl || '',
+              distance: 0, // InfoWindow에서는 거리 정보가 없으므로 0으로 설정
+            };
+            
+            console.log('Place info created:', placeInfo);
+            
+            // 전역 함수 호출 (SideMenu에서 등록한 함수) - InfoWindow 닫기 전에 호출
+            if ((window as any).setRouteLocationFromInfoWindow) {
+              console.log('전역 함수 호출 중...');
+              (window as any).setRouteLocationFromInfoWindow(option, placeInfo);
+            } else {
+              console.log('전역 함수가 등록되지 않음!');
+            }
+            
+            // 드롭다운 닫기
+            const dropdown = document.getElementById('routeDropdown');
+            if (dropdown) {
+              dropdown.style.display = 'none';
+            }
+            
+            // InfoWindow 닫기 (전역 함수 호출 후에 닫기)
+            setTimeout(() => {
+              if (onCloseInfoWindow) {
+                onCloseInfoWindow();
+              }
+            }, 100); // 100ms 지연으로 전역 함수 실행 완료 후 닫기
+          } else {
+            console.log('Selected marker가 없음!');
+            
+            // 드롭다운 닫기
+            const dropdown = document.getElementById('routeDropdown');
+            if (dropdown) {
+              dropdown.style.display = 'none';
+            }
+            
+            // InfoWindow 닫기
+            if (onCloseInfoWindow) {
+              onCloseInfoWindow();
+            }
           }
         };
 

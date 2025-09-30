@@ -158,6 +158,13 @@ export default function Home() {
     setShowInfoWindow(true);
   }, [setSelectedPlaceId, setSelectedMarkerPosition, setShowInfoWindow]);
 
+  // 길찾기 연동 함수
+  const handleSetRouteLocation = useCallback((type: 'departure' | 'arrival', placeInfo: SearchResult) => {
+    // InfoWindow에서 선택된 장소 정보를 길찾기 탭으로 전달
+    // 이 함수는 KakaoMap에서 호출될 예정
+    console.log('Route location set:', type, placeInfo);
+  }, []);
+
   // 로딩 및 에러 상태 계산
   const isLoading = locationLoading || searchLoading;
   const errorMsg = (locationError || searchError) ? String(locationError || searchError) : null;
@@ -219,6 +226,8 @@ export default function Home() {
         markerCountReachedLimit={markerCountReachedLimit}
         onNextPage={handleNextPage}
         pagination={pagination}
+        onSetRouteLocation={handleSetRouteLocation}
+        onOpenSidebar={() => setIsMenuOpen(true)}
       />
     );
   } else {
@@ -252,6 +261,8 @@ export default function Home() {
         markerCountReachedLimit={markerCountReachedLimit}
         onNextPage={handleNextPage}
         pagination={pagination}
+        onSetRouteLocation={handleSetRouteLocation}
+        onOpenSidebar={() => setIsMenuOpen(true)}
       />
     );
   }

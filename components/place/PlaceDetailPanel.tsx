@@ -132,6 +132,9 @@ export default function PlaceDetailPanel({ placeId }: Props) {
         <TouchableOpacity style={styles.closeButtonPrimary} onPress={() => setSelectedPlaceId(null)}>
           <Text style={styles.closeButtonPrimaryText}>닫기</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.routeButton} onPress={() => console.log('길찾기 시작')}>
+          <Text style={styles.routeButtonText}>길찾기</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -170,8 +173,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#eee',
     backgroundColor: '#fff',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  routeButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#007bff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeButtonText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
   },
   closeButtonPrimary: {
+    flex: 1,
     height: 44,
     borderRadius: 8,
     backgroundColor: '#eee',

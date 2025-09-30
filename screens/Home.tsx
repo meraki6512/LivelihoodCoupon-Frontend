@@ -20,6 +20,11 @@ export default function Home() {
   // 전역 상태 관리
   const selectedPlaceId = usePlaceStore((s) => s.selectedPlaceId);
   const setSelectedPlaceId = usePlaceStore((s) => s.setSelectedPlaceId);
+  const showInfoWindow = usePlaceStore((s) => s.showInfoWindow);
+  const setShowInfoWindow = usePlaceStore((s) => s.setShowInfoWindow);
+  const selectedMarkerPosition = usePlaceStore((s) => s.selectedMarkerPosition);
+  const setSelectedMarkerPosition = usePlaceStore((s) => s.setSelectedMarkerPosition);
+  const setMapCenterToStore = usePlaceStore((s) => s.setMapCenter);
   
   // 현재 위치 및 검색 관련 훅
   const { location, error: locationError, loading: locationLoading } = useCurrentLocation();
@@ -48,10 +53,16 @@ export default function Home() {
   const sideMenuAnimation = useRef(new Animated.Value(0)).current; // 사이드메뉴 애니메이션
 
   // 지도 중심 좌표 상태
-  const [mapCenter, setMapCenter] = useState<{
+  const [mapCenter, setMapCenterState] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
+
+  // 지도 중심 설정 함수 (store에도 동기화)
+  const setMapCenter = useCallback((center: { latitude: number; longitude: number }) => {
+    setMapCenterState(center);
+    setMapCenterToStore(center); // store에도 저장
+  }, [setMapCenterToStore]);
 
   // 현재 위치가 로드되면 지도 중심을 설정
   useEffect(() => {
@@ -123,15 +134,29 @@ export default function Home() {
 
   /**
    * 검색 결과 선택 핸들러
-   * 선택된 장소로 지도를 이동하고 상세 정보를 표시합니다.
+   * 선택된 장소로 지도를 이동하고 마커만 표시합니다. (InfoWindow는 표시하지 않음)
    */
   const handleSelectResult = useCallback((item: SearchResult) => {
     setMapCenter({ latitude: item.lat, longitude: item.lng });
     if (item.placeId) {
+      // 마커만 선택된 상태로 표시하고, InfoWindow는 표시하지 않음
       setSelectedPlaceId(item.placeId);
+      setShowInfoWindow(false);
     }
     setBottomSheetOpen(false); // 결과 선택 후 하단 시트 닫기
-  }, [setSelectedPlaceId]);
+  }, [setSelectedPlaceId, setShowInfoWindow]);
+
+  /**
+   * 마커 클릭 핸들러
+   * 마커를 클릭했을 때 InfoWindow를 표시합니다.
+   */
+  const handleMarkerPress = useCallback((placeId: string, lat?: number, lng?: number) => {
+    setSelectedPlaceId(placeId);
+    if (lat !== undefined && lng !== undefined) {
+      setSelectedMarkerPosition({ lat, lng });
+    }
+    setShowInfoWindow(true);
+  }, [setSelectedPlaceId, setSelectedMarkerPosition, setShowInfoWindow]);
 
   // 로딩 및 에러 상태 계산
   const isLoading = locationLoading || searchLoading;
@@ -147,7 +172,15 @@ export default function Home() {
         markerType: "userLocation",
       }] : []),
       ...allMarkers.map(marker => ({
-        ...marker,
+        placeId: marker.placeId,
+        placeName: marker.placeName,
+        lat: marker.lat,
+        lng: marker.lng,
+        categoryGroupName: marker.categoryGroupName,
+        roadAddress: marker.roadAddress,
+        lotAddress: marker.lotAddress,
+        phone: marker.phone,
+        placeUrl: marker.placeUrl,
         markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
       }))
     ];
@@ -159,6 +192,9 @@ export default function Home() {
       <HomeWebLayout
         selectedPlaceId={selectedPlaceId}
         setSelectedPlaceId={setSelectedPlaceId}
+        showInfoWindow={showInfoWindow}
+        setShowInfoWindow={setShowInfoWindow}
+        selectedMarkerPosition={selectedMarkerPosition}
         location={location}
         mapCenter={mapCenter}
         setMapCenter={setMapCenter}
@@ -175,6 +211,7 @@ export default function Home() {
         onSearch={handleSearch}
         onSearchNearMe={handleSearchNearMe} // Add this prop
         onSelectResult={handleSelectResult}
+        onMarkerPress={handleMarkerPress}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
         loadingNextPage={loadingNextPage}
@@ -189,6 +226,9 @@ export default function Home() {
       <HomeMobileLayout
         selectedPlaceId={selectedPlaceId}
         setSelectedPlaceId={setSelectedPlaceId}
+        showInfoWindow={showInfoWindow}
+        setShowInfoWindow={setShowInfoWindow}
+        selectedMarkerPosition={selectedMarkerPosition}
         location={location}
         mapCenter={mapCenter}
         setMapCenter={setMapCenter}
@@ -204,6 +244,7 @@ export default function Home() {
         onSearch={handleSearch}
         onSearchNearMe={handleSearchNearMe} // Add this prop
         onSelectResult={handleSelectResult}
+        onMarkerPress={handleMarkerPress}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
         loadingNextPage={loadingNextPage}

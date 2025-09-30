@@ -19,6 +19,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 interface HomeMobileLayoutProps {
   selectedPlaceId: string | null;
   setSelectedPlaceId: (id: string | null) => void;
+  showInfoWindow: boolean;
+  setShowInfoWindow: (show: boolean) => void;
+  selectedMarkerPosition: { lat: number; lng: number } | null;
   location: { latitude: number; longitude: number } | null;
   mapCenter: { latitude: number; longitude: number } | null;
   setMapCenter: (center: { latitude: number; longitude: number }) => void;
@@ -34,6 +37,7 @@ interface HomeMobileLayoutProps {
   onSearch: () => Promise<void>;
   onSearchNearMe: () => Promise<void>; // Add this prop
   onSelectResult: (item: SearchResult) => void;
+  onMarkerPress: (placeId: string, lat?: number, lng?: number) => void;
   searchOptions: SearchOptions;
   setSearchOptions: (options: Partial<SearchOptions>) => void;
   loadingNextPage: boolean;
@@ -46,6 +50,9 @@ interface HomeMobileLayoutProps {
 const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   selectedPlaceId,
   setSelectedPlaceId,
+  showInfoWindow,
+  setShowInfoWindow,
+  selectedMarkerPosition,
   location,
   mapCenter,
   setMapCenter,
@@ -61,6 +68,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   onSearch,
   onSearchNearMe, // Destructure the new prop
   onSelectResult,
+  onMarkerPress,
   searchOptions,
   setSearchOptions,
   loadingNextPage,
@@ -115,7 +123,12 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             onMapCenterChange={(lat, lng) =>
               setMapCenter({ latitude: lat, longitude: lng })
             }
-            onMarkerPress={(id) => id && setSelectedPlaceId(id)}
+            onMarkerPress={(id, lat, lng) => id && onMarkerPress(id, lat, lng)}
+            showInfoWindow={showInfoWindow}
+            selectedPlaceId={selectedPlaceId || undefined}
+            selectedMarkerLat={selectedMarkerPosition?.lat}
+            selectedMarkerLng={selectedMarkerPosition?.lng}
+            onCloseInfoWindow={() => setShowInfoWindow(false)}
           />
         </>
       ) : (
@@ -124,8 +137,12 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
           <Text>지도를 불러오는 중입니다...</Text>
         </View>
       )}
-      {selectedPlaceId && (
-        <PlaceDetailPanel placeId={selectedPlaceId} />
+      {selectedPlaceId && showInfoWindow && (
+        <PlaceDetailPanel 
+          placeId={selectedPlaceId} 
+          markerLat={selectedMarkerPosition?.lat}
+          markerLng={selectedMarkerPosition?.lng}
+        />
       )}
     </SafeAreaView>
   );

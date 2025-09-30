@@ -7,7 +7,6 @@ import {
   Animated,
 } from "react-native";
 import KakaoMap from "../components/KakaoMap";
-import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import Header from "../components/layout/Header";
 import SideMenu from "../components/layout/SideMenu";
 import { SearchResult, SearchOptions } from "../types/search";
@@ -16,6 +15,9 @@ import { PageResponse } from "../types/api";
 interface HomeWebLayoutProps {
   selectedPlaceId: string | null;
   setSelectedPlaceId: (id: string | null) => void;
+  showInfoWindow: boolean;
+  setShowInfoWindow: (show: boolean) => void;
+  selectedMarkerPosition: { lat: number; lng: number } | null;
   location: { latitude: number; longitude: number } | null;
   mapCenter: { latitude: number; longitude: number } | null;
   setMapCenter: (center: { latitude: number; longitude: number }) => void;
@@ -32,6 +34,7 @@ interface HomeWebLayoutProps {
   onSearch: () => Promise<void>;
   onSearchNearMe: () => Promise<void>; // Add this prop
   onSelectResult: (item: SearchResult) => void;
+  onMarkerPress: (placeId: string, lat?: number, lng?: number) => void;
   searchOptions: SearchOptions;
   setSearchOptions: (options: Partial<SearchOptions>) => void;
   loadingNextPage: boolean;
@@ -44,6 +47,9 @@ interface HomeWebLayoutProps {
 const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   selectedPlaceId,
   setSelectedPlaceId,
+  showInfoWindow,
+  setShowInfoWindow,
+  selectedMarkerPosition,
   location,
   mapCenter,
   setMapCenter,
@@ -60,6 +66,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   onSearch,
   onSearchNearMe, // Destructure the new prop
   onSelectResult,
+  onMarkerPress,
   searchOptions,
   setSearchOptions,
   loadingNextPage,
@@ -107,7 +114,12 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
               onMapCenterChange={(lat, lng) =>
                 setMapCenter({ latitude: lat, longitude: lng })
               }
-              onMarkerPress={(id) => id && setSelectedPlaceId(id)}
+              onMarkerPress={(id, lat, lng) => id && onMarkerPress(id, lat, lng)}
+              showInfoWindow={showInfoWindow}
+              selectedPlaceId={selectedPlaceId || undefined}
+              selectedMarkerLat={selectedMarkerPosition?.lat}
+              selectedMarkerLng={selectedMarkerPosition?.lng}
+              onCloseInfoWindow={() => setShowInfoWindow(false)}
             />
           ) : (
             <View style={webStyles.loadingContainer}>
@@ -117,9 +129,6 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
           )}
         </View>
       </View>
-      {selectedPlaceId && (
-        <PlaceDetailPanel placeId={selectedPlaceId} />
-      )}
     </View>
   );
 };

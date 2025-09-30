@@ -23,6 +23,11 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     markers,
     onMapCenterChange,
     onMarkerPress,
+    showInfoWindow,
+    selectedPlaceId,
+    selectedMarkerLat,
+    selectedMarkerLng,
+    onCloseInfoWindow,
   }: KakaoMapProps) => {
     const { isLoaded, error: scriptError } = useKakaoMapScript();
     const mapRef = useRef<HTMLDivElement>(null);
@@ -30,6 +35,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     const clustererInstance = useRef<any>(null);
     const infowindowInstance = useRef<any>(null); // Single infowindow instance
     const userLocationMarkerInstance = useRef<any>(null);
+    const infoWindowOverlayInstance = useRef<any>(null); // InfoWindow CustomOverlay instance
     const [isMapReady, setIsMapReady] = useState(false);
 
     // Effect for initial map creation
@@ -205,7 +211,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               infowindowInstance.current = customOverlay; // Keep track of the last opened custom overlay
 
               if (markerData.markerType !== "userLocation" && onMarkerPress) {
-                onMarkerPress(markerData.placeId);
+                onMarkerPress(markerData.placeId, markerData.lat, markerData.lng);
               }
             });
 
@@ -216,6 +222,153 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
         }
       }
     }, [isMapReady, markers]);
+
+    // InfoWindow CustomOverlay 관리
+    useEffect(() => {
+      console.log('InfoWindow useEffect triggered:', {
+        mapInstance: !!mapInstance.current,
+        showInfoWindow,
+        selectedPlaceId,
+        selectedMarkerLat,
+        selectedMarkerLng,
+        markersCount: markers?.length
+      });
+
+      if (mapInstance.current && showInfoWindow && selectedPlaceId && selectedMarkerLat && selectedMarkerLng) {
+        // 기존 InfoWindow 제거
+        if (infoWindowOverlayInstance.current) {
+          infoWindowOverlayInstance.current.setMap(null);
+        }
+
+        // 선택된 마커 데이터 찾기
+        const selectedMarker = markers?.find(marker => marker.placeId === selectedPlaceId);
+        console.log('Selected marker found:', selectedMarker);
+        
+        if (!selectedMarker) {
+          console.log('No selected marker found for placeId:', selectedPlaceId);
+          return;
+        }
+
+        // InfoWindow HTML 콘텐츠 생성
+        const infoWindowContent = `
+          <div style="
+            position: relative;
+            background-color: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            font-size: 14px;
+            color: #333;
+            width: 340px;
+            border: 1px solid #ddd;
+            z-index: 1000;
+          ">
+            <div style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            ">
+              <h3 style="
+                margin: 0;
+                font-size: 18px;
+                font-weight: bold;
+                flex: 1;
+              ">${selectedMarker.placeName}</h3>
+              <button onclick="window.closeInfoWindow()" style="
+                background: none;
+                border: none;
+                font-size: 25px;
+                color: #666;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 8px;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">×</button>
+            </div>
+            
+            <div style="margin-bottom: 8px;">
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">주소</span>
+                <span style="margin-left: 14px;">${selectedMarker.roadAddress || selectedMarker.lotAddress || '-'}</span>
+              </div>
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">전화</span>
+                <span style="color: #28a745; margin-left: 14px;">${selectedMarker.phone || '-'}</span>
+              </div>
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">카테고리</span>
+                <span style="margin-left: 14px;">${selectedMarker.categoryGroupName || '-'}</span>
+              </div>
+              ${selectedMarker.placeUrl ? `
+                <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                  <span style="min-width: 50px; font-weight: 500;">상세보기</span>
+                  <a href="${selectedMarker.placeUrl}" target="_blank" style="color: #007bff; margin-left: 14px;">카카오맵에서 보기</a>
+                </div>
+              ` : ''}
+            </div>
+            
+            <div style="
+              position: absolute;
+              bottom: 15px;
+              right: 20px;
+            ">
+              <button onclick="window.closeInfoWindow()" style="
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 6px 12px;
+                font-size: 12px;
+                cursor: pointer;
+              ">길찾기</button>
+            </div>
+            
+            <div style="
+              position: absolute;
+              bottom: -6px;
+              left: 50%;
+              transform: translateX(-50%) rotate(45deg);
+              width: 12px;
+              height: 12px;
+              background-color: white;
+              border-right: 1px solid #ddd;
+              border-bottom: 1px solid #ddd;
+              box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.05);
+              z-index: -1;
+            "></div>
+          </div>
+        `;
+
+        // InfoWindow 닫기 함수를 전역에 등록
+        (window as any).closeInfoWindow = () => {
+          if (onCloseInfoWindow) {
+            onCloseInfoWindow();
+          }
+        };
+
+        // CustomOverlay 생성
+        const infoWindowOverlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(selectedMarkerLat, selectedMarkerLng),
+          content: infoWindowContent,
+          yAnchor: 1.1, // 마커 위쪽에 배치
+          zIndex: 1000,
+        });
+
+        // InfoWindow 표시
+        infoWindowOverlay.setMap(mapInstance.current);
+        infoWindowOverlayInstance.current = infoWindowOverlay;
+
+      } else if (infoWindowOverlayInstance.current) {
+        // InfoWindow 숨기기
+        infoWindowOverlayInstance.current.setMap(null);
+        infoWindowOverlayInstance.current = null;
+      }
+    }, [showInfoWindow, selectedPlaceId, selectedMarkerLat, selectedMarkerLng, markers, onCloseInfoWindow]);
 
   if (scriptError) {
     return (

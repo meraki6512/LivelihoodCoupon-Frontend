@@ -316,8 +316,47 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               position: absolute;
               bottom: 15px;
               right: 20px;
+              display: flex;
+              flex-direction: column;
+              align-items: flex-end;
             ">
-              <button onclick="window.closeInfoWindow()" style="
+              <div id="routeDropdown" style="
+                position: absolute;
+                bottom: 35px;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                display: none;
+                min-width: 100px;
+                z-index: 1001;
+              ">
+                <button onclick="window.selectRouteOption('departure')" style="
+                  display: block;
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: none;
+                  background: none;
+                  text-align: center;
+                  cursor: pointer;
+                  font-size: 13px;
+                  color: #333;
+                  border-bottom: 1px solid #eee;
+                ">출발</button>
+                <button onclick="window.selectRouteOption('arrival')" style="
+                  display: block;
+                  width: 100%;
+                  padding: 8px 12px;
+                  border: none;
+                  background: none;
+                  text-align: center;
+                  cursor: pointer;
+                  font-size: 13px;
+                  color: #333;
+                ">도착</button>
+              </div>
+              <button onclick="window.toggleRouteDropdown()" style="
                 background-color: #007bff;
                 color: white;
                 border: none;
@@ -325,7 +364,9 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
                 padding: 6px 12px;
                 font-size: 12px;
                 cursor: pointer;
-              ">길찾기</button>
+              ">
+                길찾기
+              </button>
             </div>
             
             <div style="
@@ -350,6 +391,43 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
             onCloseInfoWindow();
           }
         };
+
+        // 드롭다운 토글 함수
+        (window as any).toggleRouteDropdown = () => {
+          const dropdown = document.getElementById('routeDropdown');
+          if (dropdown) {
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+          }
+        };
+
+        // 드롭다운 옵션 선택 함수
+        (window as any).selectRouteOption = (option: 'departure' | 'arrival') => {
+          console.log('Route option selected:', option, 'for place:', selectedPlaceId);
+          // 여기에 길찾기 로직을 추가할 예정
+          
+          // 드롭다운 닫기
+          const dropdown = document.getElementById('routeDropdown');
+          if (dropdown) {
+            dropdown.style.display = 'none';
+          }
+          
+          // InfoWindow 닫기
+          if (onCloseInfoWindow) {
+            onCloseInfoWindow();
+          }
+        };
+
+        // 드롭다운 외부 클릭 시 닫기
+        document.addEventListener('click', (event) => {
+          const dropdown = document.getElementById('routeDropdown');
+          const routeButton = document.querySelector('button[onclick="window.toggleRouteDropdown()"]');
+          
+          if (dropdown && routeButton && 
+              !dropdown.contains(event.target as Node) && 
+              !routeButton.contains(event.target as Node)) {
+            dropdown.style.display = 'none';
+          }
+        });
 
         // CustomOverlay 생성
         const infoWindowOverlay = new window.kakao.maps.CustomOverlay({

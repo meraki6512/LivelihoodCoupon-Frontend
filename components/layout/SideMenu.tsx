@@ -86,6 +86,9 @@ interface SideMenuProps {
   const [lastStartQuery, setLastStartQuery] = useState<string>('');
   const [lastEndQuery, setLastEndQuery] = useState<string>('');
   
+  // 교통수단 선택 상태
+  const [selectedTransportMode, setSelectedTransportMode] = useState<'car' | 'transit' | 'walking' | 'bicycle'>('walking');
+  
   // 디바운스를 위한 타이머 참조
   const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const endSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -312,6 +315,68 @@ interface SideMenuProps {
             setShowEndResults(false);
           }}>
             <View style={styles.routeTabContent}>
+            
+            {/* 교통수단 선택 아이콘들 */}
+            <View style={styles.transportModeWrapper}>
+              <View style={styles.transportModeContainer}>
+                <TouchableOpacity 
+                  style={[
+                    styles.transportModeButton,
+                    selectedTransportMode === 'car' && styles.transportModeButtonSelected
+                  ]}
+                  onPress={() => setSelectedTransportMode('car')}
+                >
+                  <Ionicons 
+                    name="car-outline" 
+                    size={20} 
+                    color={selectedTransportMode === 'car' ? '#007bff' : '#666'} 
+                  />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.transportModeButton,
+                    selectedTransportMode === 'transit' && styles.transportModeButtonSelected
+                  ]}
+                  onPress={() => setSelectedTransportMode('transit')}
+                >
+                  <Ionicons 
+                    name="bus-outline" 
+                    size={20} 
+                    color={selectedTransportMode === 'transit' ? '#007bff' : '#666'} 
+                  />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.transportModeButton,
+                    selectedTransportMode === 'walking' && styles.transportModeButtonSelected
+                  ]}
+                  onPress={() => setSelectedTransportMode('walking')}
+                >
+                  <Ionicons 
+                    name="walk-outline" 
+                    size={20} 
+                    color={selectedTransportMode === 'walking' ? '#007bff' : '#666'} 
+                  />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[
+                    styles.transportModeButton,
+                    selectedTransportMode === 'bicycle' && styles.transportModeButtonSelected
+                  ]}
+                  onPress={() => setSelectedTransportMode('bicycle')}
+                >
+                  <Ionicons 
+                    name="bicycle-outline" 
+                    size={20} 
+                    color={selectedTransportMode === 'bicycle' ? '#007bff' : '#666'} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* 전체 입력 영역 (수평 배치) */}
             <View style={styles.inputsRowContainer}>
             {/* 출발지/목적지 입력 영역 */}
@@ -722,6 +787,7 @@ interface SideMenuProps {
       flexDirection: 'row',
       alignItems: 'center',
       marginBottom: 16,
+      paddingHorizontal: 14, 
     },
     // 출발지/목적지 입력 영역 컨테이너
     routeInputsContainer: {
@@ -982,8 +1048,9 @@ interface SideMenuProps {
       paddingVertical: 12,
       paddingHorizontal: 24,
       borderRadius: 8,
-      marginTop: 12,
+      marginTop: 0,
       marginBottom: 36,
+      marginHorizontal: 16, // 교통수단 아이콘과 같은 패딩
     },
     routeButtonDisabled: {
       backgroundColor: '#6c757d',
@@ -994,6 +1061,35 @@ interface SideMenuProps {
       fontSize: 16,
       fontWeight: 'bold',
       marginLeft: 8,
+    },
+    // 교통수단 선택 스타일
+    transportModeWrapper: {
+      alignItems: 'center',
+      marginTop: -10,
+      marginBottom: 16,
+    },
+    transportModeContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      width: 330, // 더 넓게 조정
+    },
+    transportModeButton: {
+      paddingVertical: 8,
+      paddingHorizontal: 15,
+      borderRadius: 6,
+      backgroundColor: '#f8f9fa',
+      borderWidth: 1,
+      borderColor: '#dee2e6',
+      minWidth: 60,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    transportModeButtonSelected: {
+      backgroundColor: '#e3f2fd',
+      borderColor: '#007bff',
+      borderWidth: 2,
     },
   });
   

@@ -117,7 +117,7 @@ export default function PlaceDetailPanel({ placeId }: Props) {
                 style={styles.gradientOverlayMobile}
               />
             </View>
-          )}{/* "상세 정보 보기" 버튼 */}
+          )}
           <TouchableOpacity style={styles.viewDetailsButton} onPress={() => openLink(data.placeUrl)}>
             <Text style={styles.viewDetailsButtonText}>상세 정보 보기</Text>
           </TouchableOpacity>
@@ -245,11 +245,20 @@ const styles = StyleSheet.create({
     height: 50, // 중앙 정렬을 위한 고정 높이
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 }, // 2에서 증가
-    shadowOpacity: 0.6, // 0.25에서 증가
-    shadowRadius: 10, // 3.84에서 증가
-    elevation: 15, // 5에서 증가 (Android 전용)
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 15,
+      },
+      web: {
+        boxShadow: '0px 8px 10px rgba(0, 0, 0, 0.6)',
+      }
+    }),
   },
   viewDetailsButtonText: {
     color: 'white',

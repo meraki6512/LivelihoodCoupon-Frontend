@@ -12,11 +12,9 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
   <body>
     <div id="map"></div>
     <script>
-      let map; // Declare map in a wider scope
-      let clusterer; // Declare clusterer in a wider scope
-      let currentOpenInfowindow = null; // To keep track of the currently open infowindow
-      let userLocationMarker = null; // To keep track of the user location marker
-      let isUpdatingMarkers = false; // Flag to prevent idle event loop
+      let map;
+      let clusterer;
+      let userLocationMarker = null;
 
       function initMap(lat, lng) {
         const mapContainer = document.getElementById('map');
@@ -34,7 +32,6 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         });
 
         kakao.maps.event.addListener(map, 'idle', function() {
-          if (isUpdatingMarkers) return; // Do not send idle event during marker updates
           const latlng = map.getCenter();
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'map_idle',
@@ -46,131 +43,91 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
 
       function updateMapCenter(lat, lng) {
         if (map) {
-          const newCenter = new kakao.maps.LatLng(lat, lng);
-          map.setCenter(newCenter);
+          map.setCenter(new kakao.maps.LatLng(lat, lng));
         }
       }
 
-      function getMarkerImage(type) {
-        const imageSrc =
-            type === "selected"
-                ? "https://velog.velcdn.com/images/daeng_ae/post/616c30b6-ec60-43a4-8df7-ae28ba3a1438/image.png"
-                : type === "userLocation"
-                ? "https://velog.velcdn.com/images/daeng_ae/post/7ae477a1-4f89-4848-9089-7b0186b280cc/image.png"
-                : "https://velog.velcdn.com/images/daeng_ae/post/35b23de1-b1f3-458f-82f5-cbc1bc7c230d/image.png";
-
-        const imageSize = new kakao.maps.Size(36, 36);
-        const imageOption = { offset: new kakao.maps.Point(18, 36) };
-
-        return new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
+      function createDotMarkerImage(isSelected) {
+        const size = isSelected ? 24 : 16; // Selected 24px, Default 16px
+        const borderWidth = isSelected ? 2 : 1;
+        const fillColor = isSelected ? '#FF385C' : '#007bff'; // Red for selected, Blue for default
+        const borderColor = '#fff'; // White border for both
+        const svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg">' +
+                    '<circle cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + ((size - borderWidth * 2) / 2) + '" fill="' + fillColor + '" stroke="' + borderColor + '" stroke-width="' + borderWidth + '"/>' +
+                    '</svg>';
+        return 'data:image/svg+xml;base64,' + btoa(svg); // Corrected
       }
+
+      const markerImages = {
+        default: new kakao.maps.MarkerImage(
+          createDotMarkerImage(false),
+          new kakao.maps.Size(16, 16), // New size
+          { offset: new kakao.maps.Point(8, 8) } // New offset (size / 2)
+        ),
+        selected: new kakao.maps.MarkerImage(
+          createDotMarkerImage(true),
+          new kakao.maps.Size(24, 24), // New size
+          { offset: new kakao.maps.Point(12, 12) } // New offset (size / 2)
+        ),
+        userLocation: new kakao.maps.MarkerImage(
+          'MARKER_IMAGE_USER_LOCATION_PLACEHOLDER',
+          new kakao.maps.Size(36, 36),
+          { offset: new kakao.maps.Point(18, 36) }
+        )
+      };
 
       function updateMarkers(markersData) {
         if (!map || !clusterer) return;
 
-        isUpdatingMarkers = true;
-
-        // Clear existing markers and infowindows
         clusterer.clear();
         if (userLocationMarker) {
             userLocationMarker.setMap(null);
-        }
-        if (currentOpenInfowindow) {
-            currentOpenInfowindow.close();
         }
 
         const userLocationData = markersData.find(m => m.markerType === 'userLocation');
         const placeMarkersData = markersData.filter(m => m.markerType !== 'userLocation');
 
-        // Handle user location marker immediately
         if (userLocationData) {
-            const markerPosition = new kakao.maps.LatLng(userLocationData.lat, userLocationData.lng);
             userLocationMarker = new kakao.maps.Marker({
-                position: markerPosition,
-                image: getMarkerImage(userLocationData.markerType),
+                position: new kakao.maps.LatLng(userLocationData.lat, userLocationData.lng),
+                image: markerImages.userLocation,
                 zIndex: 101
             });
             userLocationMarker.setMap(map);
         }
 
-        // Process place markers in chunks to avoid blocking the UI thread
         if (placeMarkersData && placeMarkersData.length > 0) {
-            let index = 0;
-            const chunkSize = 50; // Process 50 markers at a time
-
-            function processChunk() {
-                const end = Math.min(index + chunkSize, placeMarkersData.length);
-                const chunk = placeMarkersData.slice(index, end);
-
-                const kakaoMarkers = chunk.map(markerData => {
-                    const markerPosition = new kakao.maps.LatLng(markerData.lat, markerData.lng);
-                    const marker = new kakao.maps.Marker({
-                        position: markerPosition,
-                        image: getMarkerImage(markerData.markerType),
-                        zIndex: markerData.markerType === "selected" ? 100 : 1,
-                    });
-
-                    const infowindow = new kakao.maps.InfoWindow({
-                        content: '<div style="padding:5px;font-size:12px;"><span style="font-weight:bold;">' + markerData.placeName + '</span><br><span>' + (markerData.categoryGroupName || '') + '</span></div>',
-                        disableAutoPan: true
-                    });
-
-                    kakao.maps.event.addListener(marker, 'click', function() {
-                        if (currentOpenInfowindow) {
-                            currentOpenInfowindow.close();
-                        }
-                        infowindow.open(map, marker);
-                        currentOpenInfowindow = infowindow;
-
-                        if (markerData.placeId && markerData.markerType !== 'userLocation') {
-                            window.ReactNativeWebView.postMessage(JSON.stringify({
-                                type: 'marker_press',
-                                id: markerData.placeId
-                            }));
-                        }
-                    });
-                    return marker;
+            const kakaoMarkers = placeMarkersData.map(markerData => {
+                const isSelected = markerData.markerType === 'selected';
+                const marker = new kakao.maps.Marker({
+                    position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
+                    image: isSelected ? markerImages.selected : markerImages.default,
+                    zIndex: isSelected ? 100 : 1,
                 });
 
-                // Add markers to the clusterer without redrawing
-                clusterer.addMarkers(kakaoMarkers);
-                index += chunkSize;
-
-                if (index < placeMarkersData.length) {
-                    setTimeout(processChunk, 0); // Schedule the next chunk
-                } else {
-                    // Last chunk finished
-                    setTimeout(() => { isUpdatingMarkers = false; }, 100); 
-                }
-            }
-
-            setTimeout(processChunk, 0); // Start the process
-        } else {
-            // No place markers to process
-            isUpdatingMarkers = false;
+                kakao.maps.event.addListener(marker, 'click', function() {
+                    window.ReactNativeWebView.postMessage(JSON.stringify({
+                        type: 'marker_press',
+                        id: markerData.placeId
+                    }));
+                });
+                return marker;
+            });
+            clusterer.addMarkers(kakaoMarkers);
         }
       }
 
       function mapApiReady() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'map_api_ready'
-        }));
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_api_ready' }));
       }
 
       window.onload = function() {
         if (typeof kakao !== 'undefined' && kakao.maps) {
-          kakao.maps.load(function() {
-            mapApiReady();
-          });
+          kakao.maps.load(function() { mapApiReady(); });
         } else {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'error',
-            message: 'Kakao Maps SDK not available in WebView'
-          }));
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK not available' }));
         }
       };
-
-    </script>
-  </body>
+    </script>  </body>
 </html>
 `;

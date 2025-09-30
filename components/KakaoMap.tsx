@@ -76,26 +76,33 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
       if (isMapReady && mapInstance.current && clustererInstance.current) {
         // Clear clustered markers
         clustererInstance.current.clear();
-        infowindowInstance.current?.close();
+        infowindowInstance.current?.setMap(null);
 
         // Clear previous user location marker if it exists
         if (userLocationMarkerInstance.current) {
           userLocationMarkerInstance.current.setMap(null);
         }
 
-        // Helper function to get marker image based on type
-        const getMarkerImage = (type?: string) => {
-          const imageSrc =
-            type === "selected"
-              ? MARKER_IMAGES.SELECTED
-              : type === "userLocation"
-              ? MARKER_IMAGES.USER_LOCATION
-              : MARKER_IMAGES.DEFAULT;
-
+        // Helper function to get marker image based on type (only for userLocation)
+        const getUserLocationMarkerImage = () => {
+          const imageSrc = MARKER_IMAGES.USER_LOCATION;
           const imageSize = new window.kakao.maps.Size(36, 36);
           const imageOption = { offset: new window.kakao.maps.Point(18, 36) };
-
           return new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
+        };
+
+        // Create a small SVG as a data URI for the dot marker image.
+        const createDotMarkerImage = (isSelected: boolean) => {
+          const size = isSelected ? 24 : 16; // Selected 24px, Default 16px
+          const borderWidth = isSelected ? 2 : 1;
+          const fillColor = isSelected ? '#FF385C' : '#007bff'; // Red for selected, Blue for default
+          const borderColor = '#fff'; // White border for both
+          const svg = `
+            <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="${size / 2}" cy="${size / 2}" r="${(size - borderWidth * 2) / 2}" fill="${fillColor}" stroke="${borderColor}" stroke-width="${borderWidth}"/>
+            </svg>
+          `;
+          return `data:image/svg+xml;base64,${btoa(svg)}`;
         };
 
         const userLocationMarkerData = markers?.find(m => m.markerType === 'userLocation');
@@ -109,7 +116,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           );
           const marker = new window.kakao.maps.Marker({
             position: markerPosition,
-            image: getMarkerImage(userLocationMarkerData.markerType),
+            image: getUserLocationMarkerImage(),
             zIndex: 101 // Ensure it's on top
           });
           marker.setMap(mapInstance.current);
@@ -118,27 +125,84 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
         // Handle place markers with clusterer
         if (placeMarkersData && placeMarkersData.length > 0) {
+          clustererInstance.current.clear(); // Clear existing markers from clusterer
+
           const kakaoMarkers = placeMarkersData.map((markerData) => {
             const markerPosition = new window.kakao.maps.LatLng(
               markerData.lat,
               markerData.lng
             );
+
+            const markerImageSrc = createDotMarkerImage(markerData.markerType === "selected");
+            const imageSize = new window.kakao.maps.Size(markerData.markerType === "selected" ? 16 : 12, markerData.markerType === "selected" ? 16 : 12);
+            const imageOption = { offset: new window.kakao.maps.Point(imageSize.width / 2, imageSize.height / 2) }; // Center the dot
+
             const marker = new window.kakao.maps.Marker({
               position: markerPosition,
-              image: getMarkerImage(markerData.markerType),
+              image: new window.kakao.maps.MarkerImage(markerImageSrc, imageSize, imageOption),
               zIndex: markerData.markerType === "selected" ? 100 : 1,
             });
 
-            const infowindow = new window.kakao.maps.InfoWindow({
-              content: `<div style="padding:5px;font-size:12px;"><span style="font-weight:bold;">${markerData.placeName}</span><br><span>${markerData.categoryGroupName}</span></div>`,
+            const customOverlayContent = `
+              <div style="
+                position: relative;
+                bottom: 15px; /* Adjust to position above the marker */
+                background-color: white;
+                border-radius: 6px;
+                padding: 8px 12px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                font-size: 13px;
+                color: #333;
+                white-space: nowrap;
+                text-align: center;
+                border: 1px solid #ddd; /* Add a subtle border */
+              ">
+                <span style="font-weight: bold; display: block;">${markerData.placeName}</span>
+                <span style="font-size: 11px; color: #666;">${markerData.categoryGroupName}</span>
+                <div style="
+                  position: absolute;
+                  bottom: -6px; /* Position the arrow at the bottom center */
+                  left: 50%;
+                  transform: translateX(-50%) rotate(45deg);
+                  width: 12px;
+                  height: 12px;
+                  background-color: white;
+                  border-right: 1px solid #ddd; /* Match main border */
+                  border-bottom: 1px solid #ddd; /* Match main border */
+                  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.05);
+                  z-index: -1; /* Ensure arrow is behind the main content */
+                "></div>
+              </div>
+            `;
+
+            const customOverlay = new window.kakao.maps.CustomOverlay({
+              position: markerPosition,
+              content: customOverlayContent,
+              yAnchor: 1, // Anchor the bottom of the overlay to the marker position
+              zIndex: 102, // Ensure it's above all markers
             });
 
+            // Show custom overlay on mouseover
+            window.kakao.maps.event.addListener(marker, "mouseover", function () {
+              customOverlay.setMap(mapInstance.current);
+            });
+
+            // Close custom overlay on mouseout
+            window.kakao.maps.event.addListener(marker, "mouseout", function () {
+              customOverlay.setMap(null);
+            });
+
+            // Handle click event
             window.kakao.maps.event.addListener(marker, "click", function () {
-              if (infowindowInstance.current) {
-                infowindowInstance.current.close();
+              // Close any currently open custom overlay if it's not this one
+              if (infowindowInstance.current && infowindowInstance.current !== customOverlay) {
+                infowindowInstance.current.setMap(null);
               }
-              infowindow.open(mapInstance.current, marker);
-              infowindowInstance.current = infowindow;
+              // Open this custom overlay if it's not already open (e.g., from hover)
+              if (!customOverlay.getMap()) {
+                customOverlay.setMap(mapInstance.current);
+              }
+              infowindowInstance.current = customOverlay; // Keep track of the last opened custom overlay
 
               if (markerData.markerType !== "userLocation" && onMarkerPress) {
                 onMarkerPress(markerData.placeId);
@@ -193,9 +257,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
       "KAKAO_MAP_JS_KEY_PLACEHOLDER",
       KAKAO_MAP_JS_KEY
     );
-    content = content.replace("MARKER_IMAGE_SELECTED_PLACEHOLDER", MARKER_IMAGES.SELECTED);
     content = content.replace("MARKER_IMAGE_USER_LOCATION_PLACEHOLDER", MARKER_IMAGES.USER_LOCATION);
-    content = content.replace("MARKER_IMAGE_DEFAULT_PLACEHOLDER", MARKER_IMAGES.DEFAULT);
     return content;
   }, [KAKAO_MAP_JS_KEY]);
 

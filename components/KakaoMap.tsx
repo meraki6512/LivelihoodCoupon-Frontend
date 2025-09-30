@@ -34,7 +34,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<any>(null);
     const clustererInstance = useRef<any>(null);
-    const infowindowInstance = useRef<any>(null); // Single infowindow instance
+    const infowindowInstance = useRef<any>(null); // 단일 정보창 인스턴스
     const userLocationMarkerInstance = useRef<any>(null);
     const infoWindowOverlayInstance = useRef<any>(null); // InfoWindow CustomOverlay instance
     const [isMapReady, setIsMapReady] = useState(false);
@@ -90,7 +90,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           userLocationMarkerInstance.current.setMap(null);
         }
 
-        // Helper function to get marker image based on type (only for userLocation)
+        // 사용자 위치 마커에만 사용되는 마커 이미지 헬퍼 함수
         const getUserLocationMarkerImage = () => {
           const imageSrc = MARKER_IMAGES.USER_LOCATION;
           const imageSize = new window.kakao.maps.Size(36, 36);
@@ -98,7 +98,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           return new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
         };
 
-        // Create a small SVG as a data URI for the dot marker image.
+        // 점 마커 이미지용 작은 SVG를 데이터 URI로 생성
         const createDotMarkerImage = (isSelected: boolean) => {
           const size = isSelected ? 24 : 16; // Selected 24px, Default 16px
           const borderWidth = isSelected ? 2 : 1;
@@ -124,15 +124,15 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           const marker = new window.kakao.maps.Marker({
             position: markerPosition,
             image: getUserLocationMarkerImage(),
-            zIndex: 101 // Ensure it's on top
+            zIndex: 101 // 최상단에 표시되도록 보장
           });
           marker.setMap(mapInstance.current);
-          userLocationMarkerInstance.current = marker; // Save instance
+          userLocationMarkerInstance.current = marker; // 인스턴스 저장
         }
 
         // Handle place markers with clusterer
         if (placeMarkersData && placeMarkersData.length > 0) {
-          clustererInstance.current.clear(); // Clear existing markers from clusterer
+          clustererInstance.current.clear(); // 클러스터러에서 기존 마커 제거
 
           const kakaoMarkers = placeMarkersData.map((markerData) => {
             const markerPosition = new window.kakao.maps.LatLng(
@@ -142,7 +142,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
             const markerImageSrc = createDotMarkerImage(markerData.markerType === "selected");
             const imageSize = new window.kakao.maps.Size(markerData.markerType === "selected" ? 16 : 12, markerData.markerType === "selected" ? 16 : 12);
-            const imageOption = { offset: new window.kakao.maps.Point(imageSize.width / 2, imageSize.height / 2) }; // Center the dot
+            const imageOption = { offset: new window.kakao.maps.Point(imageSize.width / 2, imageSize.height / 2) }; // 점의 중앙에 오도록 오프셋 설정
 
             const marker = new window.kakao.maps.Marker({
               position: markerPosition,
@@ -153,7 +153,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
             const customOverlayContent = `
               <div style="
                 position: relative;
-                bottom: 15px; /* Adjust to position above the marker */
+                bottom: 15px; /* 마커 위로 위치 조절 */
                 background-color: white;
                 border-radius: 6px;
                 padding: 8px 12px;
@@ -162,22 +162,22 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
                 color: #333;
                 white-space: nowrap;
                 text-align: center;
-                border: 1px solid #ddd; /* Add a subtle border */
+                border: 1px solid #ddd; /* 메인 테두리와 일치 */
               ">
                 <span style="font-weight: bold; display: block;">${markerData.placeName}</span>
                 <span style="font-size: 11px; color: #666;">${markerData.categoryGroupName}</span>
                 <div style="
                   position: absolute;
-                  bottom: -6px; /* Position the arrow at the bottom center */
+                  bottom: -6px; /* 화살표를 하단 중앙에 위치 */
                   left: 50%;
                   transform: translateX(-50%) rotate(45deg);
                   width: 12px;
                   height: 12px;
                   background-color: white;
-                  border-right: 1px solid #ddd; /* Match main border */
-                  border-bottom: 1px solid #ddd; /* Match main border */
+                  border-right: 1px solid #ddd; /* 메인 테두리와 일치 */
+                  border-bottom: 1px solid #ddd; /* 메인 테두리와 일치 */
                   box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.05);
-                  z-index: -1; /* Ensure arrow is behind the main content */
+                  z-index: -1; /* 메인 콘텐츠 뒤에 화살표가 오도록 보장 */
                 "></div>
               </div>
             `;
@@ -185,31 +185,31 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
             const customOverlay = new window.kakao.maps.CustomOverlay({
               position: markerPosition,
               content: customOverlayContent,
-              yAnchor: 1, // Anchor the bottom of the overlay to the marker position
-              zIndex: 102, // Ensure it's above all markers
+              yAnchor: 1, // 오버레이의 하단을 마커 위치에 고정
+              zIndex: 102, // 모든 마커 위에 표시되도록 보장
             });
 
-            // Show custom overlay on mouseover
+            // 마우스 오버 시 커스텀 오버레이 표시
             window.kakao.maps.event.addListener(marker, "mouseover", function () {
               customOverlay.setMap(mapInstance.current);
             });
 
-            // Close custom overlay on mouseout
+            // 마우스 아웃 시 커스텀 오버레이 닫기
             window.kakao.maps.event.addListener(marker, "mouseout", function () {
               customOverlay.setMap(null);
             });
 
-            // Handle click event
+            // 클릭 이벤트 처리
             window.kakao.maps.event.addListener(marker, "click", function () {
-              // Close any currently open custom overlay if it's not this one
+              // 현재 열려 있는 커스텀 오버레이가 현재 마커의 것이 아니라면 닫기
               if (infowindowInstance.current && infowindowInstance.current !== customOverlay) {
                 infowindowInstance.current.setMap(null);
               }
-              // Open this custom overlay if it's not already open (e.g., from hover)
+              // 이미 열려 있지 않다면 (예: 호버로 인해) 이 커스텀 오버레이 열기
               if (!customOverlay.getMap()) {
                 customOverlay.setMap(mapInstance.current);
               }
-              infowindowInstance.current = customOverlay; // Keep track of the last opened custom overlay
+              infowindowInstance.current = customOverlay; // 마지막으로 열린 커스텀 오버레이 추적
 
               if (markerData.markerType !== "userLocation" && onMarkerPress) {
                 onMarkerPress(markerData.placeId, markerData.lat, markerData.lng);
@@ -511,7 +511,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
 import { kakaoMapWebViewHtml } from "./kakaoMapWebViewSource";
 
-// 모바일 전용 Kakao Map 렌더링 로직 (WebView 사용)
+// 모바일 전용 카카오 맵 렌더링 로직 (WebView 사용)
 const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   latitude,
   longitude,
@@ -533,22 +533,6 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
     content = content.replace("MARKER_IMAGE_USER_LOCATION_PLACEHOLDER", MARKER_IMAGES.USER_LOCATION);
     return content;
   }, [KAKAO_MAP_JS_KEY]);
-
-  // Effect to initialize map when API is ready and map is not yet initialized
-  useEffect(() => {
-    if (
-      webViewRef.current &&
-      htmlContent &&
-      isMapApiReady &&
-      !isMapInitialized &&
-      latitude !== undefined &&
-      longitude !== undefined
-    ) {
-      const script = `initMap(${latitude}, ${longitude}); true;`;
-      webViewRef.current.injectJavaScript(script);
-      setIsMapInitialized(true);
-    }
-  }, [isMapApiReady, isMapInitialized, latitude, longitude, htmlContent]);
 
   // Effect to update map center when latitude/longitude props change after initialization
   useEffect(() => {
@@ -594,15 +578,32 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
 
   return (
     <WebView
-      ref={webViewRef} // Assign ref to WebView
+      ref={webViewRef} // WebView에 ref 할당
       originWhitelist={["*"]}
       source={{ html: htmlContent }}
       style={[styles.webview, style]}
       javaScriptEnabled={true}
       domStorageEnabled={true}
-      onLoad={() => console.log("WebView loaded successfully")}
-      onError={(e) => console.error("WebView error: ", e.nativeEvent)}
-      onMessage={(event) => {
+      onLoadEnd={() => {
+        if (webViewRef.current && latitude !== undefined && longitude !== undefined) {
+          // 카카오 맵 SDK 로드 및 지도 초기화 스크립트 주입
+          const script = `
+            if (typeof kakao !== 'undefined' && kakao.maps) {
+              kakao.maps.load(function() {
+                initMap(${latitude}, ${longitude});
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_api_ready' }));
+              }, function(err) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK load failed: ' + err.message }));
+              });
+            } else {
+              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK not available' }));
+            }
+          `;
+          webViewRef.current.injectJavaScript(script);
+        }
+      }}
+      onError={(e) => console.error("WebView error: ", e.nativeEvent)} // WebView 오류 처리
+      onMessage={(event) => { // WebView 메시지 처리
         try {
           const data = JSON.parse(event.nativeEvent.data);
           if (data.type === "map_idle" && onMapCenterChange) {
@@ -613,6 +614,10 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
           }
           if (data.type === 'map_api_ready') {
             setIsMapApiReady(true);
+            setIsMapInitialized(true); // initMap 성공 후 초기화 완료로 설정
+          }
+          if (data.type === 'error') { // WebView 내부에서 발생한 에러 처리
+            console.error('WebView internal error:', data.message);
           }
         } catch (e) {
           console.error("Failed to parse WebView message:", e);

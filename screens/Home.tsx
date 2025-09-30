@@ -27,7 +27,28 @@ export default function Home() {
   const setMapCenterToStore = usePlaceStore((s) => s.setMapCenter);
   
   // 현재 위치 및 검색 관련 훅
-  const { location, error: locationError, loading: locationLoading } = useCurrentLocation();
+  // 에뮬레이터 테스트를 위해 하드코딩된 위치 사용 여부를 설정합니다.
+  // 실제 배포 시에는 반드시 false로 설정해야 합니다.
+  const USE_HARDCODED_LOCATION = process.env.EXPO_PUBLIC_USE_HARDCODED_LOCATION === 'true'; // .env 파일에서 설정
+
+  const {
+    location: actualLocation,
+    error: actualLocationError,
+    loading: actualLocationLoading,
+  } = useCurrentLocation();
+
+  const location = USE_HARDCODED_LOCATION
+    ? {
+        latitude: parseFloat(process.env.EXPO_PUBLIC_HARDCODED_LATITUDE || '0'),
+        longitude: parseFloat(process.env.EXPO_PUBLIC_HARDCODED_LONGITUDE || '0'),
+      }
+    : actualLocation;
+  const locationError = USE_HARDCODED_LOCATION
+    ? null
+    : actualLocationError;
+  const locationLoading = USE_HARDCODED_LOCATION
+    ? false
+    : actualLocationLoading;
   const {
     searchQuery,
     setSearchQuery,

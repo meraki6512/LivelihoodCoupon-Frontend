@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -79,6 +79,16 @@ interface SideMenuProps {
   const [pressedEndButtons, setPressedEndButtons] = useState<Set<string>>(new Set());
   const [hoveredStartButtons, setHoveredStartButtons] = useState<Set<string>>(new Set());
   const [hoveredEndButtons, setHoveredEndButtons] = useState<Set<string>>(new Set());
+  
+  // 중복 검색 방지를 위한 상태
+  const [isSearchingStartInProgress, setIsSearchingStartInProgress] = useState(false);
+  const [isSearchingEndInProgress, setIsSearchingEndInProgress] = useState(false);
+  const [lastStartQuery, setLastStartQuery] = useState<string>('');
+  const [lastEndQuery, setLastEndQuery] = useState<string>('');
+  
+  // 디바운스를 위한 타이머 참조
+  const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const endSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     const { location } = useCurrentLocation();
   
@@ -86,7 +96,15 @@ interface SideMenuProps {
     const searchStartLocation = async (query: string) => {
       if (!query.trim() || !location) return;
       
+      // 중복 검색 방지: 동일한 쿼리로 이미 검색 중이거나 검색했으면 스킵
+      if (isSearchingStartInProgress || lastStartQuery === query) {
+        return;
+      }
+
+      setIsSearchingStartInProgress(true);
+      setLastStartQuery(query);
       setIsSearchingStart(true);
+      
       try {
         const results = await searchPlaces(
           query,
@@ -106,14 +124,41 @@ interface SideMenuProps {
         setStartLocationResults([]);
       } finally {
         setIsSearchingStart(false);
+        setIsSearchingStartInProgress(false);
       }
+    };
+
+    // 디바운스된 출발지 검색 함수
+    const debouncedSearchStartLocation = (query: string) => {
+      // 기존 타이머 취소
+      if (startSearchTimeoutRef.current) {
+        clearTimeout(startSearchTimeoutRef.current);
+      }
+      
+      // 새로운 타이머 설정 (500ms 후 실행)
+      startSearchTimeoutRef.current = setTimeout(() => {
+        if (query.trim().length > 1) {
+          searchStartLocation(query);
+        } else {
+          setShowStartResults(false);
+          setStartLocationResults([]);
+        }
+      }, 500);
     };
 
     // 목적지 검색 함수
     const searchEndLocation = async (query: string) => {
       if (!query.trim() || !location) return;
       
+      // 중복 검색 방지: 동일한 쿼리로 이미 검색 중이거나 검색했으면 스킵
+      if (isSearchingEndInProgress || lastEndQuery === query) {
+        return;
+      }
+
+      setIsSearchingEndInProgress(true);
+      setLastEndQuery(query);
       setIsSearchingEnd(true);
+      
       try {
         const results = await searchPlaces(
           query,
@@ -133,11 +178,55 @@ interface SideMenuProps {
         setEndLocationResults([]);
       } finally {
         setIsSearchingEnd(false);
+        setIsSearchingEndInProgress(false);
       }
     };
 
+    // 디바운스된 목적지 검색 함수
+    const debouncedSearchEndLocation = (query: string) => {
+      // 기존 타이머 취소
+      if (endSearchTimeoutRef.current) {
+        clearTimeout(endSearchTimeoutRef.current);
+      }
+      
+      // 새로운 타이머 설정 (500ms 후 실행)
+      endSearchTimeoutRef.current = setTimeout(() => {
+        if (query.trim().length > 1) {
+          searchEndLocation(query);
+        } else {
+          setShowEndResults(false);
+          setEndLocationResults([]);
+        }
+      }, 500);
+    };
+
+    // 컴포넌트 언마운트 시 타이머 정리
+    useEffect(() => {
+      return () => {
+        if (startSearchTimeoutRef.current) {
+          clearTimeout(startSearchTimeoutRef.current);
+        }
+        if (endSearchTimeoutRef.current) {
+          clearTimeout(endSearchTimeoutRef.current);
+        }
+      };
+    }, []);
+
     const renderFooter = () => {
-      if (!loadingNextPage) return null;
+      // 더 이상 로드할 페이지가 없으면 로딩 스피너를 표시하지 않음
+      console.log('renderFooter - loadingNextPage:', loadingNextPage, 'pagination:', pagination);
+      
+      // 강력한 조건: 로딩 중이 아니거나, 페이지네이션 정보가 없거나, 마지막 페이지이거나, 현재 페이지가 총 페이지보다 크면 스피너 숨김
+      // 추가: 백엔드 문제 대응 - 현재 페이지가 비정상적으로 클 때도 스피너 숨김
+      if (!loadingNextPage || 
+          !pagination || 
+          pagination.isLast || 
+          pagination.currentPage >= pagination.totalPages ||
+          searchResults.length === 0 ||
+          pagination.currentPage > 10) { // 백엔드 문제 대응: 페이지가 10을 넘으면 스피너 숨김
+        return null;
+      }
+      
       return <ActivityIndicator style={{ paddingVertical: 20 }} size="large" color="#007bff" />;
     };
   
@@ -154,7 +243,7 @@ interface SideMenuProps {
             data={searchResults}
             keyExtractor={(item) => item.placeId}
             renderItem={({ item }) => <SearchResultItem item={item} onPress={onSelectResult} />}
-            onEndReached={onNextPage}
+            onEndReached={pagination && !pagination.isLast && pagination.currentPage < pagination.totalPages ? onNextPage : undefined}
             onEndReachedThreshold={0.5}
             ListFooterComponent={renderFooter}
           />
@@ -236,11 +325,7 @@ interface SideMenuProps {
                     value={startLocation}
                     onChangeText={(text) => {
                       setStartLocation(text);
-                      if (text.trim().length > 1) {
-                        searchStartLocation(text);
-                      } else {
-                        setShowStartResults(false);
-                      }
+                      debouncedSearchStartLocation(text);
                     }}
                     onSubmitEditing={() => {
                       if (startLocation.trim() && startLocation !== "내 위치") {
@@ -277,11 +362,7 @@ interface SideMenuProps {
                     value={endLocation}
                     onChangeText={(text) => {
                       setEndLocation(text);
-                      if (text.trim().length > 1) {
-                        searchEndLocation(text);
-                      } else {
-                        setShowEndResults(false);
-                      }
+                      debouncedSearchEndLocation(text);
                     }}
                     onSubmitEditing={() => {
                       if (endLocation.trim()) {

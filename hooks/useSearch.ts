@@ -167,62 +167,64 @@ export const useSearch = () => {
   }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
 
   const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-    if (!state.pagination || state.loadingAllMarkers) {
+    if (!state.pagination || state.loadingAllMarkers || state.pagination.isLast) {
       return;
     }
+    
     dispatch({ type: 'START_ALL_MARKERS_LOAD' });
 
-    const MAX_PAGES_FOR_MARKERS = 10;
+    const MAX_PAGES_FOR_MARKERS = 5; // 10에서 5로 줄임
     const startPage = state.pagination.currentPage + 1;
-    const pagePromises: Promise<PageResponse<SearchResult>>[] = [];
-
-    for (let i = 0; i < MAX_PAGES_FOR_MARKERS; i++) {
-      const pageNum = startPage + i;
-      // If we already know it's the last page, no need to fetch further
-      if (state.pagination.isLast && i > 0) break;
-
-      pagePromises.push(
-        searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, pageNum, userLatitude, userLongitude)
-      );
-    }
-
+    let allNewMarkers: SearchResult[] = [];
     let limitReached = false;
+
     try {
-      const results = await Promise.allSettled(pagePromises);
-      let allNewMarkers: SearchResult[] = [];
-      let lastPageFetched = state.pagination.currentPage;
-
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          const pageData = result.value;
+      // 순차적으로 페이지를 가져오도록 변경 (동시 호출 대신)
+      for (let i = 0; i < MAX_PAGES_FOR_MARKERS; i++) {
+        const pageNum = startPage + i;
+        
+        try {
+          const pageData = await searchPlaces(
+            state.searchQuery, 
+            latitude, 
+            longitude, 
+            state.searchOptions.radius, 
+            state.searchOptions.sort, 
+            pageNum, 
+            userLatitude, 
+            userLongitude
+          );
+          
           allNewMarkers = [...allNewMarkers, ...pageData.content];
-          lastPageFetched = Math.max(lastPageFetched, startPage + index);
+          
+          // 마지막 페이지이면 중단
           if (pageData.isLast) {
-            limitReached = false; // Reached natural end, not artificial limit
+            limitReached = false; // 자연스러운 끝
+            break;
           }
-        } else {
-          console.error(`Error fetching page ${startPage + index} for markers:`, result.reason);
-        }
-      });
-
-      dispatch({ type: 'APPEND_MARKERS', payload: allNewMarkers });
-
-      // Determine if the limit was reached based on how many pages we actually tried to fetch
-      // and if the last one was not the actual last page from the API.
-      if (results.length === MAX_PAGES_FOR_MARKERS && !limitReached) {
-        // If we tried to fetch MAX_PAGES_FOR_MARKERS and none of them indicated isLast, then limit was reached
-        const lastResult = results[results.length - 1];
-        if (lastResult.status === 'fulfilled' && !lastResult.value.isLast) {
-          limitReached = true;
+          
+          // 너무 많은 마커가 쌓이면 중단 (성능 고려)
+          if (allNewMarkers.length > 200) {
+            limitReached = true;
+            break;
+          }
+        } catch (pageError) {
+          console.error(`Failed to fetch page ${pageNum}:`, pageError);
+          // 개별 페이지 에러 시 중단하지 않고 계속 진행
+          continue;
         }
       }
 
-    } catch (err) {
-      console.error("Error fetching all markers in parallel:", err);
-      limitReached = true; // Assume limit reached on error
-    }
+      // Dispatch the new markers
+      if (allNewMarkers.length > 0) {
+        dispatch({ type: 'APPEND_MARKERS', payload: allNewMarkers });
+      }
 
-    dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached } });
+      dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached } });
+    } catch (error) {
+      console.error("Error fetching all markers:", error);
+      dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached: true } });
+    }
   }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers]);
 
   const clearSearchResults = () => {

@@ -8,12 +8,13 @@ const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => 
 };
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Platform, ViewStyle, Text } from "react-native";
+import { View, StyleSheet, Platform, ViewStyle, Text, Modal, TouchableOpacity, Alert } from "react-native";
 import { WebView } from "react-native-webview";
 import { KAKAO_MAP_JS_KEY } from "@env";
 import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
+import { SearchResult } from "../types/search";
 import { styles } from "./KakaoMap.styles";
 import { MARKER_IMAGES } from "../constants/mapConstants";
 
@@ -524,6 +525,8 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   const updateTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isMapApiReady, setIsMapApiReady] = useState(false);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
+  const [showRouteMenu, setShowRouteMenu] = useState(false);
+  const [selectedPlaceInfo, setSelectedPlaceInfo] = useState<SearchResult | null>(null);
 
   const htmlContent = useMemo(() => {
     let content = kakaoMapWebViewHtml.replace(
@@ -577,53 +580,130 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   }
 
   return (
-    <WebView
-      ref={webViewRef} // WebView에 ref 할당
-      originWhitelist={["*"]}
-      source={{ html: htmlContent }}
-      style={[styles.webview, style]}
-      javaScriptEnabled={true}
-      domStorageEnabled={true}
-      onLoadEnd={() => {
-        if (webViewRef.current && latitude !== undefined && longitude !== undefined) {
-          // 카카오 맵 SDK 로드 및 지도 초기화 스크립트 주입
-          const script = `
-            if (typeof kakao !== 'undefined' && kakao.maps) {
-              kakao.maps.load(function() {
-                initMap(${latitude}, ${longitude});
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_api_ready' }));
-              }, function(err) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK load failed: ' + err.message }));
-              });
-            } else {
-              window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK not available' }));
+    <View style={{ flex: 1 }}>
+      <WebView
+        ref={webViewRef} // WebView에 ref 할당
+        originWhitelist={["*"]}
+        source={{ html: htmlContent }}
+        style={[styles.webview, style]}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+        onLoadEnd={() => {
+          if (webViewRef.current && latitude !== undefined && longitude !== undefined) {
+            // 카카오 맵 SDK 로드 및 지도 초기화 스크립트 주입
+            const script = `
+              if (typeof kakao !== 'undefined' && kakao.maps) {
+                kakao.maps.load(function() {
+                  initMap(${latitude}, ${longitude});
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_api_ready' }));
+                }, function(err) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK load failed: ' + err.message }));
+                });
+              } else {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Kakao Maps SDK not available' }));
+              }
+            `;
+            webViewRef.current.injectJavaScript(script);
+          }
+        }}
+        onError={(e) => console.error("WebView error: ", e.nativeEvent)} // WebView 오류 처리
+        onMessage={(event) => { // WebView 메시지 처리
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === "map_idle" && onMapCenterChange) {
+              onMapCenterChange(data.latitude, data.longitude);
             }
-          `;
-          webViewRef.current.injectJavaScript(script);
-        }
-      }}
-      onError={(e) => console.error("WebView error: ", e.nativeEvent)} // WebView 오류 처리
-      onMessage={(event) => { // WebView 메시지 처리
-        try {
-          const data = JSON.parse(event.nativeEvent.data);
-          if (data.type === "map_idle" && onMapCenterChange) {
-            onMapCenterChange(data.latitude, data.longitude);
+            if (data.type === "marker_press" && onMarkerPress) {
+              onMarkerPress(data.id);
+            }
+            if (data.type === 'map_api_ready') {
+              setIsMapApiReady(true);
+              setIsMapInitialized(true); // initMap 성공 후 초기화 완료로 설정
+            }
+            if (data.type === 'route_selected') {
+              // 길찾기 버튼 클릭 시 처리
+              console.log('Route selected:', data.placeId, data.placeName);
+              
+              // 전역 함수가 등록되어 있으면 호출
+              if ((global as any).setRouteLocationFromInfoWindow) {
+                const placeInfo: SearchResult = {
+                  placeId: data.placeId,
+                  placeName: data.placeName,
+                  roadAddress: data.roadAddress || '',
+                  lotAddress: data.lotAddress || '',
+                  lat: data.latitude || 0,
+                  lng: data.longitude || 0,
+                  phone: data.phone || '',
+                  categoryGroupName: data.category || '',
+                  placeUrl: data.placeUrl || '',
+                  distance: data.distance || 0
+                };
+                
+                // 출발/도착 드롭다운 메뉴 표시
+                setSelectedPlaceInfo(placeInfo);
+                setShowRouteMenu(true);
+              } else {
+                console.warn('setRouteLocationFromInfoWindow 함수가 등록되지 않았습니다.');
+              }
+            }
+            if (data.type === 'error') { // WebView 내부에서 발생한 에러 처리
+              console.error('WebView internal error:', data.message);
+            }
+          } catch (e) {
+            console.error("Failed to parse WebView message:", e);
           }
-          if (data.type === "marker_press" && onMarkerPress) {
-            onMarkerPress(data.id);
-          }
-          if (data.type === 'map_api_ready') {
-            setIsMapApiReady(true);
-            setIsMapInitialized(true); // initMap 성공 후 초기화 완료로 설정
-          }
-          if (data.type === 'error') { // WebView 내부에서 발생한 에러 처리
-            console.error('WebView internal error:', data.message);
-          }
-        } catch (e) {
-          console.error("Failed to parse WebView message:", e);
-        }
-      }}
-    />
+        }}
+      />
+      {/* 출발/도착 드롭다운 메뉴 */}
+      <Modal
+        visible={showRouteMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRouteMenu(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.routeMenuContainer}>
+            <Text style={styles.routeMenuTitle}>
+              {selectedPlaceInfo?.placeName}
+            </Text>
+            <Text style={styles.routeMenuSubtitle}>
+              길찾기 옵션을 선택하세요
+            </Text>
+            
+            <TouchableOpacity
+              style={styles.routeMenuButton}
+              onPress={() => {
+                if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
+                  (global as any).setRouteLocationFromInfoWindow('departure', selectedPlaceInfo);
+                  setShowRouteMenu(false);
+                }
+              }}
+            >
+              <Text style={styles.routeMenuButtonText}>출발지로 설정</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.routeMenuButton}
+              onPress={() => {
+                if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
+                  (global as any).setRouteLocationFromInfoWindow('arrival', selectedPlaceInfo);
+                  setShowRouteMenu(false);
+                }
+              }}
+            >
+              <Text style={styles.routeMenuButtonText}>도착지로 설정</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.routeMenuCancelButton}
+              onPress={() => setShowRouteMenu(false)}
+            >
+              <Text style={styles.routeMenuCancelButtonText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 });
 

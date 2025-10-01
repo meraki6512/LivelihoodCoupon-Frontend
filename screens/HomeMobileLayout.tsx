@@ -8,7 +8,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'; // Change this import
 import { Ionicons } from '@expo/vector-icons'; // Add this import
 import KakaoMap from "../components/KakaoMap";
-import PlaceDetailPanel from "../components/place/PlaceDetailPanel";
 import Header from "../components/layout/Header";
 import CustomBottomSheet from "../components/search/CustomBottomSheet";
 import { SearchResult, SearchOptions } from "../types/search";
@@ -111,6 +110,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         markerCountReachedLimit={markerCountReachedLimit}
         onNextPage={onNextPage}
         pagination={pagination}
+        onSetRouteLocation={onSetRouteLocation}
       />
 
       {bottomSheetOpen && (
@@ -141,13 +141,6 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
           <ActivityIndicator size="large" color="#0000ff" />
           <Text>지도를 불러오는 중입니다...</Text>
         </View>
-      )}
-      {selectedPlaceId && showInfoWindow && (
-        <PlaceDetailPanel 
-          placeId={selectedPlaceId} 
-          markerLat={selectedMarkerPosition?.lat}
-          markerLng={selectedMarkerPosition?.lng}
-        />
       )}
     </SafeAreaView>
   );

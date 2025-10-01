@@ -92,14 +92,14 @@ export default function Home() {
     }
   }, [location, mapCenter]);
 
-  // 최초 검색 성공 후, 모든 마커를 가져오는 로직
+  // 최초 검색 성공 후, 모든 마커를 가져오는 로직 (한 번만 실행)
   useEffect(() => {
-    if (pagination && pagination.currentPage === 1 && !pagination.isLast) {
+    if (pagination && pagination.currentPage === 1 && !pagination.isLast && !loadingAllMarkers) {
       if (mapCenter && location) {
         fetchAllMarkers(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
       }
     }
-  }, [pagination]);
+  }, [pagination?.currentPage]); // pagination 전체가 아닌 currentPage만 의존성으로 설정
 
   // 사이드메뉴 애니메이션 처리
   useEffect(() => {

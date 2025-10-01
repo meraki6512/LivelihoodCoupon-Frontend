@@ -15,6 +15,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       let map;
       let clusterer;
       let userLocationMarker = null;
+      let infoWindowOverlay = null;
 
       function initMap(lat, lng) {
         const mapContainer = document.getElementById('map');
@@ -122,6 +123,14 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
                   });
 
                   kakao.maps.event.addListener(marker, 'click', function() {
+                      // 기존 InfoWindow 제거
+                      if (infoWindowOverlay) {
+                          infoWindowOverlay.setMap(null);
+                      }
+                      
+                      // InfoWindow 표시
+                      showInfoWindow(markerData);
+                      
                       window.ReactNativeWebView.postMessage(JSON.stringify({
                           type: 'marker_press',
                           id: markerData.placeId
@@ -135,6 +144,141 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
           console.error('Error in updateMarkers:', e);
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Error in updateMarkers: ' + e.message }));
         }
+      }
+
+      function showInfoWindow(markerData) {
+        // 모바일 화면 크기에 맞게 너비 계산
+        const screenWidth = window.innerWidth;
+        const infoWindowWidth = Math.min(270, screenWidth - 70);
+        
+        // InfoWindow HTML 콘텐츠 생성
+        const infoWindowContent = \`
+          <div style="
+            position: relative;
+            background-color: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            font-size: 13px;
+            color: #333;
+            width: \${infoWindowWidth}px;
+            border: 1px solid #ddd;
+            z-index: 1000;
+            max-width: 65vw;
+          ">
+            <div style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 12px;
+            ">
+              <h3 style="
+                margin: 0;
+                font-size: 16px;
+                font-weight: bold;
+                flex: 1;
+              ">\${markerData.placeName}</h3>
+              <button onclick="closeInfoWindow()" style="
+                background: none;
+                border: none;
+                font-size: 23px;
+                color: #666;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 8px;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">×</button>
+            </div>
+            
+            <div style="margin-bottom: 8px;">
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">주소</span>
+                <span style="margin-left: 14px;">\${markerData.roadAddress || markerData.lotAddress || '-'}</span>
+              </div>
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">전화</span>
+                <span style="color: #28a745; margin-left: 14px;">\${markerData.phone || '-'}</span>
+              </div>
+              <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                <span style="min-width: 50px; font-weight: 500;">카테고리</span>
+                <span style="margin-left: 14px;">\${markerData.categoryGroupName || '-'}</span>
+              </div>
+              \${markerData.placeUrl ? \`
+                <div style="margin-bottom: 6px; display: flex; align-items: center;">
+                  <span style="min-width: 50px; font-weight: 500;">상세보기</span>
+                  <a href="\${markerData.placeUrl}" target="_blank" style="color: #007bff; margin-left: 14px;">카카오맵에서 보기</a>
+                </div>
+              \` : ''}
+            </div>
+            
+            <div style="
+              position: absolute;
+              bottom: 15px;
+              right: 13px;
+            ">
+              <button onclick="selectRouteLocation('\${markerData.placeId}', '\${markerData.placeName}')" style="
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 4px 8px;
+                font-size: 11px;
+                cursor: pointer;
+                font-size: 12px;
+                min-width: 48px;
+              ">
+                길찾기
+              </button>
+            </div>
+            
+            <div style="
+              position: absolute;
+              bottom: -6px;
+              left: 50%;
+              transform: translateX(-50%) rotate(45deg);
+              width: 12px;
+              height: 12px;
+              background-color: white;
+              border-right: 1px solid #ddd;
+              border-bottom: 1px solid #ddd;
+              box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.05);
+              z-index: -1;
+            "></div>
+          </div>
+        \`;
+
+        // InfoWindow 닫기 함수
+        window.closeInfoWindow = function() {
+          if (infoWindowOverlay) {
+            infoWindowOverlay.setMap(null);
+            infoWindowOverlay = null;
+          }
+        };
+
+        // 길찾기 함수
+        window.selectRouteLocation = function(placeId, placeName) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'route_selected',
+            placeId: placeId,
+            placeName: placeName
+          }));
+          closeInfoWindow();
+        };
+
+        // CustomOverlay 생성
+        infoWindowOverlay = new kakao.maps.CustomOverlay({
+          position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
+          content: infoWindowContent,
+          yAnchor: 1.1, // 마커 위쪽에 배치
+          zIndex: 1000,
+        });
+
+        // InfoWindow 표시
+        infoWindowOverlay.setMap(map);
       }
 
       function mapApiReady() {

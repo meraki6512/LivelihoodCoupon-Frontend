@@ -79,7 +79,13 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const [showSearchOptions, setShowSearchOptions] = useState(false); // New state for toggle
   const [activeTab, setActiveTab] = useState<'search' | 'route'>('search'); // 탭 상태 관리
   const [keyboardHeight, setKeyboardHeight] = useState(0); // 키보드 높이 상태
-  const routeScrollViewRef = useRef<ScrollView>(null); // 길찾기 탭 스크롤뷰 참조
+  const [showFloatingCard, setShowFloatingCard] = useState(false); // 플로팅 카드 표시 상태
+  
+  // 플로팅 카드 드래그 관련 상태
+  const [floatingCardOffset, setFloatingCardOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartPosition = useRef({ x: 0, y: 0 });
+  const initialCardPosition = useRef({ x: 0, y: 0 });
   
   // 현재 위치 및 디바운스 타이머
   const { location } = useCurrentLocation();
@@ -330,16 +336,49 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
     }
   }, [hasSearchResults, isOpen]);
 
-  // 길찾기 결과가 있을 때 자동으로 스크롤다운 (적당한 위치까지만)
+  // 길찾기 결과가 있을 때 플로팅 카드 표시
   useEffect(() => {
-    if (routeResult && routeScrollViewRef.current) {
-      // 약간의 지연을 두고 스크롤다운 (컴포넌트 렌더링 완료 후)
-      setTimeout(() => {
-        // 길찾기 완료 버튼 아래쪽으로 적당히 스크롤 (300px 정도)
-        routeScrollViewRef.current?.scrollTo({ y: 300, animated: true });
-      }, 300);
+    if (routeResult) {
+      setShowFloatingCard(true);
+      // 플로팅 카드가 새로 표시될 때 오프셋 초기화
+      setFloatingCardOffset({ x: 0, y: 0 });
+    } else {
+      setShowFloatingCard(false);
     }
   }, [routeResult]);
+
+  // 플로팅 카드 드래그 핸들러들
+  const handleDragStart = (event: any) => {
+    // X 버튼 터치인지 확인
+    const { target } = event.nativeEvent;
+    if (target && target.getAttribute && target.getAttribute('data-close-button')) {
+      console.log('X 버튼 터치 - 드래그 방지');
+      return;
+    }
+    
+    const { pageX, pageY } = event.nativeEvent;
+    dragStartPosition.current = { x: pageX, y: pageY };
+    initialCardPosition.current = floatingCardOffset;
+    setIsDragging(true);
+    console.log('드래그 시작');
+  };
+
+  const handleDragMove = (event: any) => {
+    if (!isDragging) return;
+    
+    const { pageX, pageY } = event.nativeEvent;
+    const deltaX = pageX - dragStartPosition.current.x;
+    const deltaY = pageY - dragStartPosition.current.y;
+    
+    setFloatingCardOffset({
+      x: initialCardPosition.current.x + deltaX,
+      y: initialCardPosition.current.y + deltaY,
+    });
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
 
   return (
     <>
@@ -406,13 +445,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
               {renderContent()}
             </View>
           ) : (
-            <ScrollView 
-              ref={routeScrollViewRef}
-              style={styles.routeTabContent}
-              contentContainerStyle={styles.routeTabScrollContent}
-              showsVerticalScrollIndicator={true}
-              nestedScrollEnabled={true}
-            >
+            <View style={styles.routeTabContent}>
               {/* 교통수단 선택 아이콘들 */}
               <View style={styles.transportModeWrapper}>
                 <View style={styles.transportModeContainer}>
@@ -841,20 +874,123 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
                   </TouchableOpacity>
                 </View>
               )}
-
-              {/* 길찾기 결과 */}
-              {routeResult && (
-                <RouteResultComponent 
-                  routeResult={routeResult}
-                  onClose={clearRoute}
-                />
-              )}
-            </ScrollView>
+            </View>
           )}
         </View>
       )}
     </Animated.View>
     
+    {/* 플로팅 길찾기 결과 카드 */}
+    {showFloatingCard && routeResult && (
+      <View 
+        style={[
+          styles.floatingCard,
+          { 
+            top: SCREEN_HEIGHT - dynamicHeight - insets.bottom - 24 + floatingCardOffset.y,
+            left: 18 + floatingCardOffset.x,
+            right: 18 - floatingCardOffset.x,
+          }
+        ]}
+        pointerEvents="box-none"
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+      >
+        <View 
+          style={[
+            styles.floatingCardDraggableArea,
+            isDragging && styles.floatingCardHeaderDragging
+          ]}
+          pointerEvents="auto"
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+        >
+          <View style={styles.floatingCardHeader}>
+            <View style={styles.floatingCardTitle}>
+              <Ionicons name="navigate-outline" size={20} color="#007bff" />
+              <Text style={styles.floatingCardTitleText}>길찾기 결과</Text>
+            </View>
+            <View 
+              style={styles.floatingCardCloseButton}
+              pointerEvents="auto"
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                console.log('X 버튼 터치 시작 - 이벤트 차단');
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                console.log('X 버튼 터치 끝 - 클릭 실행');
+                clearRoute();
+                setShowFloatingCard(false);
+              }}
+            >
+              <TouchableOpacity 
+                onPress={() => {
+                  console.log('X 버튼 클릭됨');
+                  clearRoute();
+                  setShowFloatingCard(false);
+                }}
+                activeOpacity={0.7}
+              >
+              <Ionicons name="close-outline" size={20} color="#666" />
+              </TouchableOpacity>
+            </View>
+          
+          <View style={styles.floatingCardStats}>
+            <View style={styles.floatingCardStat}>
+              <Ionicons name="walk-outline" size={16} color="#28a745" />
+              <Text style={styles.floatingCardStatText}>
+                {routeResult.totalDistance >= 1000 
+                  ? `${(routeResult.totalDistance / 1000).toFixed(1)}km` 
+                  : `${routeResult.totalDistance}m`
+                }
+              </Text>
+            </View>
+            <View style={styles.floatingCardStat}>
+              <Ionicons name="time-outline" size={16} color="#ffc107" />
+              <Text style={styles.floatingCardStatText}>
+                {Math.round(routeResult.totalDuration / 60)}분
+              </Text>
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.floatingCardContent}>
+          
+          <View style={styles.routeStepsContainer} pointerEvents="auto">
+            <Text style={styles.routeStepsTitle}>경로 안내 (총 {routeResult.steps.length}단계)</Text>
+            <ScrollView 
+              style={styles.routeStepsScrollView}
+              showsVerticalScrollIndicator={true}
+              bounces={true}
+              scrollEnabled={true}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onScrollBeginDrag={() => console.log('플로팅 카드 스크롤 드래그 시작')}
+              onScrollEndDrag={() => console.log('플로팅 카드 스크롤 드래그 끝')}
+              onScroll={(event) => console.log('플로팅 카드 스크롤 중:', event.nativeEvent.contentOffset.y)}
+            >
+              {routeResult.steps.map((step, index) => (
+                <View key={index} style={styles.routeStep}>
+                  <View style={styles.routeStepNumber}>
+                    <Text style={styles.routeStepNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.routeStepContent}>
+                    <Text style={styles.routeStepText}>{step.instruction}</Text>
+                    <Text style={styles.routeStepDistance}>
+                      {step.distance >= 1000 
+                        ? `${(step.distance / 1000).toFixed(1)}km` 
+                        : `${step.distance}m`
+                      } • {Math.round(step.duration / 60)}분
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </View>
+    )}
     </>
   );
 };
@@ -975,33 +1111,29 @@ const styles = StyleSheet.create({
   // 길찾기 탭 스타일
   routeTabContent: {
     flex: 1,
-  },
-  routeTabScrollContent: {
     paddingVertical: 20,
-    paddingBottom: 30, 
-    flexGrow: 1,
+    paddingBottom: 30, // 하단 여백 추가
   },
   // 교통수단 선택 스타일
   transportModeWrapper: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 8, // 16에서 8로 줄임
   },
   transportModeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: -10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16, // 20에서 16으로 줄임
     width: '100%',
   },
   transportModeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10, 
-    borderRadius: 4, 
+    paddingVertical: 6, // 8에서 6으로 줄임
+    paddingHorizontal: 10, // 15에서 10으로 줄임
+    borderRadius: 4, // 6에서 4로 줄임
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
     borderColor: '#dee2e6',
-    minWidth: 45, 
+    minWidth: 45, // 60에서 45로 줄임
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1175,6 +1307,119 @@ const styles = StyleSheet.create({
   errorCloseButton: {
     padding: 4,
     marginLeft: 8,
+  },
+  // 플로팅 카드 스타일
+  floatingCard: {
+    position: 'absolute',
+    width: 'auto', // left/right 대신 width 사용
+    maxHeight: 400, // 최대 높이 설정
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 9999, // 최고 우선순위로 설정
+    minWidth: 300, // 최소 너비 설정
+  },
+  floatingCardDraggableArea: {
+    paddingVertical: 8, // 터치 영역 확대
+    paddingHorizontal: 4, // 좌우 패딩 추가
+    marginBottom: 12,
+  },
+  floatingCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  floatingCardHeaderDragging: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    opacity: 0.9,
+  },
+  floatingCardTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  floatingCardTitleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  floatingCardCloseButton: {
+    padding: 2, // 터치 영역 확대
+    borderRadius: 15, // 원형 터치 영역
+    backgroundColor: 'rgba(0,0,0,0.1)', // 배경색 추가로 터치 영역 시각화
+  },
+  floatingCardContent: {
+    // gap 제거 (드래그 가능한 영역과 분리됨)
+  },
+  floatingCardStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  floatingCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  floatingCardStatText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  routeStepsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    paddingTop: 12,
+  },
+  routeStepsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  routeStepsScrollView: {
+    height: 200, // 고정 높이로 스크롤 가능하도록
+  },
+  routeStep: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+  },
+  routeStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#007bff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  routeStepNumberText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
+  },
+  routeStepContent: {
+    flex: 1,
+  },
+  routeStepText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  routeStepDistance: {
+    fontSize: 12,
+    color: '#666',
   },
 });
 

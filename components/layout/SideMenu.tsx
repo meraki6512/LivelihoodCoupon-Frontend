@@ -8,9 +8,9 @@ import {
   Animated,
   TouchableOpacity,
   Platform,
+  ScrollView,
   TextInput,
   TouchableWithoutFeedback,
-  ScrollView,
 } from 'react-native';
 import { SearchResult, SearchOptions } from '../../types/search';
 import SearchBar from '../search/SearchBar';
@@ -20,6 +20,8 @@ import { PageResponse } from '../../types/api';
 import SearchResultItem from '../search/SearchResultItem';
 import { searchPlaces } from '../../services/searchApi';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
+import { useRoute } from '../../hooks/useRoute';
+import RouteResultComponent from '../route/RouteResult';
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -91,8 +93,18 @@ interface SideMenuProps {
   const [lastStartQuery, setLastStartQuery] = useState<string>('');
   const [lastEndQuery, setLastEndQuery] = useState<string>('');
   
-  // 교통수단 선택 상태
-  const [selectedTransportMode, setSelectedTransportMode] = useState<'car' | 'transit' | 'walking' | 'bicycle'>('walking');
+  // 교통수단 선택 상태 (백엔드 타입에 맞춤)
+  const [selectedTransportMode, setSelectedTransportMode] = useState<'driving' | 'transit' | 'walking' | 'cycling'>('driving');
+
+  // 길찾기 훅
+  const { startRoute, isLoading: isRouteLoading, routeResult, error: routeError, clearRoute } = useRoute();
+
+  // 텍스트 편집 시 길찾기 결과 초기화
+  const handleTextEdit = () => {
+    if (routeResult) {
+      clearRoute();
+    }
+  };
 
   // InfoWindow에서 길찾기 위치 설정 함수
   const handleSetRouteLocationInternal = (type: 'departure' | 'arrival', placeInfo: SearchResult) => {
@@ -373,7 +385,13 @@ interface SideMenuProps {
             setShowStartResults(false);
             setShowEndResults(false);
           }}>
-            <View style={styles.routeTabContent}>
+            <ScrollView 
+              style={styles.routeTabContent}
+              contentContainerStyle={styles.routeTabScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+            >
             
             {/* 교통수단 선택 아이콘들 */}
             <View style={styles.transportModeWrapper}>
@@ -381,28 +399,38 @@ interface SideMenuProps {
                 <TouchableOpacity 
                   style={[
                     styles.transportModeButton,
-                    selectedTransportMode === 'car' && styles.transportModeButtonSelected
+                    selectedTransportMode === 'driving' && styles.transportModeButtonSelected
                   ]}
-                  onPress={() => setSelectedTransportMode('car')}
+                  onPress={() => {
+                    handleTextEdit();
+                    setSelectedTransportMode('driving');
+                  }}
                 >
                   <Ionicons 
                     name="car-outline" 
                     size={20} 
-                    color={selectedTransportMode === 'car' ? '#007bff' : '#666'} 
+                    color={selectedTransportMode === 'driving' ? '#007bff' : '#666'} 
                   />
                 </TouchableOpacity>
                 
                 <TouchableOpacity 
                   style={[
                     styles.transportModeButton,
+                    styles.transportModeButtonDisabled, // 대중교통 모드 미구현
                     selectedTransportMode === 'transit' && styles.transportModeButtonSelected
                   ]}
-                  onPress={() => setSelectedTransportMode('transit')}
+                  // onPress={() => setSelectedTransportMode('transit')}
+                  onPress={() => {
+                    // 대중교통은 미구현 상태로 비활성화
+                    console.log('대중교통 모드는 아직 구현되지 않았습니다.');
+                  }}
+                  disabled={true}
                 >
                   <Ionicons 
                     name="bus-outline" 
                     size={20} 
-                    color={selectedTransportMode === 'transit' ? '#007bff' : '#666'} 
+                    // color={selectedTransportMode === 'transit' ? '#007bff' : '#666'} 
+                    color="#ccc" 
                   />
                 </TouchableOpacity>
                 
@@ -411,7 +439,10 @@ interface SideMenuProps {
                     styles.transportModeButton,
                     selectedTransportMode === 'walking' && styles.transportModeButtonSelected
                   ]}
-                  onPress={() => setSelectedTransportMode('walking')}
+                  onPress={() => {
+                    handleTextEdit();
+                    setSelectedTransportMode('walking');
+                  }}
                 >
                   <Ionicons 
                     name="walk-outline" 
@@ -423,14 +454,17 @@ interface SideMenuProps {
                 <TouchableOpacity 
                   style={[
                     styles.transportModeButton,
-                    selectedTransportMode === 'bicycle' && styles.transportModeButtonSelected
+                    selectedTransportMode === 'cycling' && styles.transportModeButtonSelected
                   ]}
-                  onPress={() => setSelectedTransportMode('bicycle')}
+                  onPress={() => {
+                    handleTextEdit();
+                    setSelectedTransportMode('cycling');
+                  }}
                 >
                   <Ionicons 
                     name="bicycle-outline" 
                     size={20} 
-                    color={selectedTransportMode === 'bicycle' ? '#007bff' : '#666'} 
+                    color={selectedTransportMode === 'cycling' ? '#007bff' : '#666'} 
                   />
                 </TouchableOpacity>
               </View>
@@ -448,9 +482,13 @@ interface SideMenuProps {
                     placeholder="출발지를 입력하세요"
                     value={startLocation}
                     onChangeText={(text) => {
+                      handleTextEdit();
                       setStartLocation(text);
+                      // 텍스트 변경 시 중복 검색 방지 상태 초기화 (지우고 다시 써도 검색 가능하도록)
+                      setLastStartQuery('');
                       debouncedSearchStartLocation(text);
                     }}
+                    onFocus={handleTextEdit}
                     onSubmitEditing={() => {
                       if (startLocation.trim() && startLocation !== "내 위치") {
                         searchStartLocation(startLocation);
@@ -468,6 +506,7 @@ interface SideMenuProps {
                 <TouchableOpacity 
                   style={styles.currentLocationButton}
                   onPress={() => {
+                    handleTextEdit();
                     setStartLocation('내 위치');
                     setLastSelectedStartLocation('내 위치');
                     setShowStartResults(false);
@@ -485,9 +524,13 @@ interface SideMenuProps {
                     placeholder="도착지를 입력하세요"
                     value={endLocation}
                     onChangeText={(text) => {
+                      handleTextEdit();
                       setEndLocation(text);
+                      // 텍스트 변경 시 중복 검색 방지 상태 초기화 (지우고 다시 써도 검색 가능하도록)
+                      setLastEndQuery('');
                       debouncedSearchEndLocation(text);
                     }}
+                    onFocus={handleTextEdit}
                     onSubmitEditing={() => {
                       if (endLocation.trim()) {
                         searchEndLocation(endLocation);
@@ -501,10 +544,6 @@ interface SideMenuProps {
                   )}
                 </View>
                 
-                {/* 목적지 추가 버튼 */}
-                <TouchableOpacity style={styles.addButton}>
-                  <Ionicons name="add-outline" size={16} color="#666" />
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -517,17 +556,31 @@ interface SideMenuProps {
                   const tempStart = startLocation;
                   const tempEnd = endLocation;
                   
+                  console.log('바꾸기 버튼 클릭');
+                  console.log('tempStart:', tempStart, 'tempEnd:', tempEnd);
+                  console.log('tempStart === "내 위치":', tempStart === '내 위치');
+                  
+                  // 출발지와 목적지를 서로 교체
                   if (tempStart === '내 위치') {
-                    // 출발지가 "내 위치"일 때: 목적지가 "내 위치"가 되고 출발지는 비워짐
-                    setStartLocation('');
+                    // 출발지가 "내 위치"인 경우, 목적지에 "내 위치" 설정
+                    setStartLocation(tempEnd);
                     setEndLocation('내 위치');
-                    setLastSelectedStartLocation('');
+                    setLastSelectedStartLocation(tempEnd);
                   } else {
-                    // 일반적인 경우: 출발지와 목적지 교체
-                    setStartLocation(tempEnd || '내 위치');
-                    setEndLocation(tempStart === '내 위치' ? '' : tempStart);
-                    setLastSelectedStartLocation(tempEnd || '내 위치');
+                    // 일반적인 경우: 단순 교체
+                    setStartLocation(tempEnd);
+                    setEndLocation(tempStart);
+                    setLastSelectedStartLocation(tempEnd);
                   }
+                  
+                  // 중복 검색 방지 상태 초기화 (바꾸기 후 새로 검색할 수 있도록)
+                  setLastStartQuery('');
+                  setLastEndQuery('');
+                  
+                  // 상태 변경 후 길찾기 결과 초기화
+                  handleTextEdit();
+                  
+                  console.log('바꾸기 후 상태:', { startLocation: tempEnd, endLocation: tempStart === '내 위치' ? '내 위치' : tempStart });
                 }}
               >
                 <Ionicons name="swap-vertical-outline" size={16} color="#666" />
@@ -542,6 +595,9 @@ interface SideMenuProps {
                   setLastSelectedStartLocation('');
                   setShowStartResults(false);
                   setShowEndResults(false);
+                  // X 버튼으로 입력을 지운 후에도 같은 검색어로 다시 검색할 수 있도록 중복 검색 방지 상태 초기화
+                  setLastStartQuery('');
+                  setLastEndQuery('');
                 }}
               >
                 <Ionicons name="close-outline" size={16} color="#666" />
@@ -553,12 +609,146 @@ interface SideMenuProps {
             <TouchableOpacity 
               style={[
                 styles.routeButton, 
-                (!endLocation.trim()) && styles.routeButtonDisabled
+                (!endLocation.trim() || isRouteLoading || !!routeResult) && styles.routeButtonDisabled
               ]}
-              disabled={!endLocation.trim()}
-            >
+              disabled={!endLocation.trim() || isRouteLoading || !!routeResult}
+              onPress={async () => {
+              try {
+                console.log('길찾기 시작 버튼 클릭');
+                
+                // 도착지가 비어있으면 에러
+                if (!endLocation.trim()) {
+                  alert('도착지를 입력해주세요.');
+                  return;
+                }
+
+                // 출발지 데이터 처리
+                let startLocationData: SearchResult | string;
+                console.log('출발지 값:', startLocation, '타입:', typeof startLocation);
+                
+                if (typeof startLocation === 'string' && startLocation.trim() === '내 위치') {
+                  // 출발지가 "내 위치"인 경우
+                  startLocationData = '내 위치';
+                  console.log('출발지: 내 위치로 설정');
+                } else if (typeof startLocation === 'string') {
+                  // 출발지가 일반 문자열인 경우, 검색 결과에서 찾기
+                  console.log('출발지 검색 결과에서 찾기:', startLocation);
+                  console.log('startLocationResults:', startLocationResults);
+                  console.log('endLocationResults:', endLocationResults);
+                  
+                  // 먼저 startLocationResults에서 찾기
+                  let foundStartLocation = startLocationResults.find(item => 
+                    item.placeName === startLocation || 
+                    item.placeName.includes(startLocation) || 
+                    startLocation.includes(item.placeName)
+                  );
+                  console.log('startLocationResults에서 찾은 결과:', foundStartLocation);
+                  
+                  // 없으면 endLocationResults에서도 찾기
+                  if (!foundStartLocation) {
+                    foundStartLocation = endLocationResults.find(item => 
+                      item.placeName === startLocation || 
+                      item.placeName.includes(startLocation) || 
+                      startLocation.includes(item.placeName)
+                    );
+                    console.log('endLocationResults에서 찾은 결과:', foundStartLocation);
+                  }
+                  
+                  if (!foundStartLocation) {
+                    console.log('최종적으로 찾지 못함. startLocationResults 개수:', startLocationResults.length, 'endLocationResults 개수:', endLocationResults.length);
+                    alert('출발지 정보를 찾을 수 없습니다. 다시 검색해주세요.');
+                    return;
+                  }
+                  
+                  startLocationData = foundStartLocation;
+                  console.log('출발지 데이터 찾음:', startLocationData);
+                } else {
+                  // 이미 SearchResult 객체인 경우
+                  startLocationData = startLocation;
+                  console.log('출발지 이미 객체:', startLocationData);
+                }
+
+                // 도착지 데이터 처리
+                let endLocationData: SearchResult | null = null;
+                
+                console.log('목적지 값:', endLocation, '타입:', typeof endLocation);
+                console.log('목적지 trim 후:', endLocation.trim());
+                console.log('목적지 trim 후 길이:', endLocation.trim().length);
+                console.log('조건 확인:', endLocation.trim() === '내 위치');
+                
+                if (endLocation.trim() === '내 위치') {
+                  // 목적지가 "내 위치"인 경우, 현재 위치 정보 사용
+                  if (!location) {
+                    alert('현재 위치 정보를 가져올 수 없습니다.');
+                    return;
+                  }
+                  endLocationData = {
+                    placeId: 'current-location',
+                    placeName: '내 위치',
+                    lat: location.latitude,
+                    lng: location.longitude,
+                    roadAddress: '내 위치',
+                    lotAddress: '',
+                    phone: '',
+                    categoryGroupName: '',
+                    placeUrl: '',
+                    distance: 0
+                  };
+                  console.log('내 위치 데이터 생성 완료:', endLocationData);
+                } else {
+                  // 일반 장소인 경우 검색 결과에서 찾기
+                  console.log('검색할 목적지:', endLocation);
+                  console.log('endLocationResults:', endLocationResults);
+                  console.log('startLocationResults:', startLocationResults);
+                  
+                  // 먼저 정확한 매칭으로 endLocationResults에서 찾기
+                  endLocationData = endLocationResults.find(item => item.placeName === endLocation) || null;
+                  console.log('endLocationResults에서 정확한 매칭 결과:', endLocationData);
+                  
+                  // 없으면 부분 매칭으로 endLocationResults에서 찾기
+                  if (!endLocationData) {
+                    endLocationData = endLocationResults.find(item => item.placeName.includes(endLocation) || endLocation.includes(item.placeName)) || null;
+                    console.log('endLocationResults에서 부분 매칭 결과:', endLocationData);
+                  }
+                  
+                  // 없으면 정확한 매칭으로 startLocationResults에서 찾기
+                  if (!endLocationData) {
+                    endLocationData = startLocationResults.find(item => item.placeName === endLocation) || null;
+                    console.log('startLocationResults에서 정확한 매칭 결과:', endLocationData);
+                  }
+                  
+                  // 없으면 부분 매칭으로 startLocationResults에서 찾기
+                  if (!endLocationData) {
+                    endLocationData = startLocationResults.find(item => item.placeName.includes(endLocation) || endLocation.includes(item.placeName)) || null;
+                    console.log('startLocationResults에서 부분 매칭 결과:', endLocationData);
+                  }
+                  
+                  if (!endLocationData) {
+                    console.log('최종적으로 찾지 못함. endLocationResults 개수:', endLocationResults.length, 'startLocationResults 개수:', startLocationResults.length);
+                    alert('도착지 정보를 찾을 수 없습니다. 다시 검색해주세요.');
+                    return;
+                  }
+                }
+
+                await startRoute({
+                  startLocation: startLocationData,
+                  endLocation: endLocationData!,
+                  transportMode: selectedTransportMode,
+                  userLocation: location || undefined,
+                });
+                
+                console.log('길찾기 요청 완료');
+                
+              } catch (error: any) {
+                console.error('길찾기 오류:', error);
+                alert(error.message || '길찾기 중 오류가 발생했습니다.');
+              }
+            }}
+          >
               <Ionicons name="navigate-outline" size={20} color="#fff" />
-              <Text style={styles.routeButtonText}>길찾기 시작</Text>
+              <Text style={styles.routeButtonText}>
+                {isRouteLoading ? '길찾기 중...' : routeResult ? '길찾기 완료' : '길찾기 시작'}
+              </Text>
             </TouchableOpacity>
 
             {/* 출발지 검색 결과 리스트 */}
@@ -572,9 +762,12 @@ interface SideMenuProps {
                     key={result.placeId}
                     style={styles.searchResultItem}
                     onPressIn={() => {
+                      handleTextEdit();
                       setStartLocation(result.placeName);
                       setLastSelectedStartLocation(result.placeName);
                       setShowStartResults(false);
+                      // 검색 결과 선택 후에도 같은 검색어로 다시 검색할 수 있도록 중복 검색 방지 상태 초기화
+                      setLastStartQuery('');
                     }}
                   >
                     <View style={styles.searchResultContent}>
@@ -588,10 +781,13 @@ interface SideMenuProps {
                         Platform.OS === 'web' && hoveredStartButtons.has(result.placeId) && styles.departButtonPressed
                       ]}
                       onPressIn={() => {
+                        handleTextEdit();
                         setPressedStartButtons(prev => new Set(prev).add(result.placeId));
                         setStartLocation(result.placeName);
                         setLastSelectedStartLocation(result.placeName);
                         setShowStartResults(false);
+                        // 검색 결과 선택 후에도 같은 검색어로 다시 검색할 수 있도록 중복 검색 방지 상태 초기화
+                        setLastStartQuery('');
                       }}
                       onPressOut={() => {
                         setPressedStartButtons(prev => {
@@ -637,8 +833,11 @@ interface SideMenuProps {
                     key={result.placeId}
                     style={styles.searchResultItem}
                     onPressIn={() => {
+                      handleTextEdit();
                       setEndLocation(result.placeName);
                       setShowEndResults(false);
+                      // 검색 결과 선택 후에도 같은 검색어로 다시 검색할 수 있도록 중복 검색 방지 상태 초기화
+                      setLastEndQuery('');
                     }}
                   >
                     <View style={styles.searchResultContent}>
@@ -652,9 +851,12 @@ interface SideMenuProps {
                         Platform.OS === 'web' && hoveredEndButtons.has(result.placeId) && styles.departButtonPressed
                       ]}
                       onPressIn={() => {
+                        handleTextEdit();
                         setPressedEndButtons(prev => new Set(prev).add(result.placeId));
                         setEndLocation(result.placeName);
                         setShowEndResults(false);
+                        // 검색 결과 선택 후에도 같은 검색어로 다시 검색할 수 있도록 중복 검색 방지 상태 초기화
+                        setLastEndQuery('');
                       }}
                       onPressOut={() => {
                         setPressedEndButtons(prev => {
@@ -689,7 +891,27 @@ interface SideMenuProps {
               </View>
             )}
 
-            </View>
+            {/* 길찾기 결과 표시 */}
+            {routeResult && (
+              <RouteResultComponent 
+                routeResult={routeResult} 
+                onClose={() => {
+                  clearRoute();
+                }}
+              />
+            )}
+
+            {/* 길찾기 에러 표시 */}
+            {routeError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{routeError}</Text>
+                <TouchableOpacity onPress={clearRoute} style={styles.errorCloseButton}>
+                  <Ionicons name="close-outline" size={16} color="#666" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            </ScrollView>
           </TouchableWithoutFeedback>
         )}
       </Animated.View>
@@ -767,9 +989,11 @@ interface SideMenuProps {
       marginLeft: 5,
     },
     errorText: {
-      color: 'red',
+      color: 'red', //'#721c24',
       textAlign: 'center',
       marginTop: 20,
+      fontSize: 14,
+      flex: 1,
     },
     noResultText: {
       textAlign: 'center',
@@ -824,9 +1048,12 @@ interface SideMenuProps {
     routeTabContent: {
       flex: 1,
       paddingVertical: 20,
-      paddingBottom: 100, // 드롭다운을 위한 여백 추가
       position: 'relative',
       zIndex: 1,
+    },
+    routeTabScrollContent: {
+      paddingBottom: 80,
+      flexGrow: 1,
     },
     routeTabTitle: {
       fontSize: 20,
@@ -929,14 +1156,21 @@ interface SideMenuProps {
       maxHeight: 260,
     },
     noResultsContainer: {
-      paddingVertical: 20,
+      paddingVertical: 24,
       paddingHorizontal: 16,
       alignItems: 'center',
+      backgroundColor: '#f8f9fa',
+      borderRadius: 8,
+      margin: 8,
+      borderWidth: 1,
+      borderColor: '#e9ecef',
+      borderStyle: 'dashed',
     },
     noResultsText: {
       fontSize: 14,
-      color: '#999',
+      color: '#6c757d',
       fontStyle: 'italic',
+      textAlign: 'center',
     },
     // 드롭다운 스타일
     searchResultsDropdown: {
@@ -1044,6 +1278,9 @@ interface SideMenuProps {
       padding: 4,
       marginLeft: 8,
     },
+    currentLocationButtonDisabled: {
+      opacity: 0.6,
+    },
     locationDisplay: {
       flex: 1,
       flexDirection: 'row',
@@ -1115,12 +1352,27 @@ interface SideMenuProps {
       backgroundColor: '#6c757d',
       opacity: 0.6,
     },
-    routeButtonText: {
-      color: '#fff',
-      fontSize: 16,
-      fontWeight: 'bold',
-      marginLeft: 8,
-    },
+  routeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  errorContainer: {
+    backgroundColor: '#f8d7da',
+    borderColor: '#f5c6cb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  errorCloseButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
     // 교통수단 선택 스타일
     transportModeWrapper: {
       alignItems: 'center',
@@ -1149,6 +1401,11 @@ interface SideMenuProps {
       backgroundColor: '#e3f2fd',
       borderColor: '#007bff',
       borderWidth: 2,
+    },
+    transportModeButtonDisabled: {
+      backgroundColor: '#f5f5f5',
+      borderColor: '#e0e0e0',
+      opacity: 0.6,
     },
   });
   

@@ -24,6 +24,7 @@ import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import RouteResultComponent from '../route/RouteResult';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from './SearchResultItem';
+import { RouteResult } from '../../types/route';
 
 interface CustomBottomSheetProps {
   isOpen: boolean;
@@ -45,6 +46,12 @@ interface CustomBottomSheetProps {
   onNextPage: () => void;
   pagination: Omit<PageResponse<any>, 'content'> | null;
   onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
+  // 외부에서 전달받은 길찾기 관련 props
+  routeResult?: RouteResult | null;
+  isRouteLoading?: boolean;
+  routeError?: string | null;
+  startRoute?: any;
+  clearRoute?: () => void;
 }
 
 const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
@@ -67,6 +74,11 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   onNextPage,
   pagination,
   onSetRouteLocation,
+  routeResult: externalRouteResult,
+  isRouteLoading: externalIsRouteLoading,
+  routeError: externalRouteError,
+  startRoute: externalStartRoute,
+  clearRoute: externalClearRoute,
 }) => {
   const { height: SCREEN_HEIGHT } = Dimensions.get('window');
   const insets = useSafeAreaInsets();
@@ -97,8 +109,13 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const [showEndResults, setShowEndResults] = useState(false);
   const [selectedTransportMode, setSelectedTransportMode] = useState<'driving' | 'transit' | 'walking' | 'cycling'>('driving');
 
-  // 길찾기 훅
-  const { startRoute, isLoading: isRouteLoading, routeResult, error: routeError, clearRoute } = useRoute();
+  // 길찾기 관련 상태 (외부에서 전달받은 props 우선 사용, 없으면 내부 훅 사용)
+  const internalRoute = useRoute();
+  const startRoute = externalStartRoute || internalRoute.startRoute;
+  const isRouteLoading = externalIsRouteLoading !== undefined ? externalIsRouteLoading : internalRoute.isLoading;
+  const routeResult = externalRouteResult !== undefined ? externalRouteResult : internalRoute.routeResult;
+  const routeError = externalRouteError !== undefined ? externalRouteError : internalRoute.error;
+  const clearRoute = externalClearRoute || internalRoute.clearRoute;
 
   // 텍스트 편집 시 길찾기 결과 초기화
   const handleTextEdit = () => {

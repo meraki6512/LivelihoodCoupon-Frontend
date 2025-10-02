@@ -1,4 +1,5 @@
 import { ViewStyle } from "react-native";
+import { RouteResult } from "./route";
 
 /**
  * 지도 마커 데이터 타입
@@ -24,6 +25,7 @@ export type KakaoMapProps = {
   longitude: number; // 지도 중심 경도
   style?: ViewStyle; // 지도 스타일 (선택적)
   markers?: MarkerData[]; // 표시할 마커 목록 (선택적)
+  routeResult?: RouteResult | null; // 길찾기 결과 (경로 표시용)
   onMapCenterChange?: (latitude: number, longitude: number) => void; // 지도 중심 변경 콜백
   onMarkerPress?: (placeId?: string, lat?: number, lng?: number) => void; // 마커 클릭 콜백
   showInfoWindow?: boolean; // InfoWindow 표시 여부

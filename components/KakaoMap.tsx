@@ -22,6 +22,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     latitude,
     longitude,
     markers,
+    routeResult,
     onMapCenterChange,
     onMarkerPress,
     showInfoWindow,
@@ -31,6 +32,8 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     onCloseInfoWindow,
     onSetRouteLocation,
   }: KakaoMapProps) => {
+    console.log('WebKakaoMap 렌더링:', { routeResult: !!routeResult, routeResultCoordinates: routeResult?.coordinates?.length });
+    
     const { isLoaded, error: scriptError } = useKakaoMapScript();
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstance = useRef<any>(null);
@@ -38,6 +41,9 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     const infowindowInstance = useRef<any>(null); // 단일 정보창 인스턴스
     const userLocationMarkerInstance = useRef<any>(null);
     const infoWindowOverlayInstance = useRef<any>(null); // InfoWindow CustomOverlay instance
+    const routePolylineInstance = useRef<any>(null); // 경로 라인 인스턴스
+    const routeStartMarkerInstance = useRef<any>(null); // 출발지 마커 인스턴스
+    const routeEndMarkerInstance = useRef<any>(null); // 도착지 마커 인스턴스
     const [isMapReady, setIsMapReady] = useState(false);
 
     // Effect for initial map creation
@@ -491,6 +497,142 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
       }
     }, [showInfoWindow, selectedPlaceId, selectedMarkerLat, selectedMarkerLng, markers, onCloseInfoWindow]);
 
+    // 경로 표시 Effect
+    useEffect(() => {
+      console.log('웹 경로 표시 useEffect 실행:', {
+        isMapReady,
+        hasMapInstance: !!mapInstance.current,
+        hasRouteResult: !!routeResult,
+        routeResultCoordinates: routeResult?.coordinates?.length || 0
+      });
+      
+      if (isMapReady && mapInstance.current) {
+        // 기존 경로 요소들 제거
+        if (routePolylineInstance.current) {
+          routePolylineInstance.current.setMap(null);
+          routePolylineInstance.current = null;
+        }
+        if (routeStartMarkerInstance.current) {
+          routeStartMarkerInstance.current.setMap(null);
+          routeStartMarkerInstance.current = null;
+        }
+        if (routeEndMarkerInstance.current) {
+          routeEndMarkerInstance.current.setMap(null);
+          routeEndMarkerInstance.current = null;
+        }
+
+        // 새로운 경로 표시
+        if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
+          console.log('웹 경로 표시 시작:', routeResult);
+          console.log('window.kakao 객체 존재:', !!window.kakao);
+          console.log('mapInstance.current 존재:', !!mapInstance.current);
+          
+          try {
+            // 1. 경로 라인 그리기
+            const path = routeResult.coordinates.map(coord => 
+              new window.kakao.maps.LatLng(coord.lat, coord.lng)
+            );
+            
+            console.log('경로 좌표 개수:', path.length);
+            
+            const polyline = new window.kakao.maps.Polyline({
+              map: mapInstance.current,
+              path: path,
+              strokeWeight: 5,
+              strokeColor: '#FF385C',
+              strokeOpacity: 0.8,
+              strokeStyle: 'solid',
+              zIndex: 50
+            });
+            routePolylineInstance.current = polyline;
+            console.log('웹 경로 라인 생성 완료');
+          } catch (error) {
+            console.error('웹 경로 라인 생성 오류:', error);
+          }
+
+          // 2. 출발지 마커 표시
+          try {
+            if (routeResult.steps && routeResult.steps.length > 0) {
+              const startStep = routeResult.steps[0];
+              const startPosition = new window.kakao.maps.LatLng(
+                startStep.startLocation.lat, 
+                startStep.startLocation.lng
+              );
+              
+              const startMarker = new window.kakao.maps.Marker({
+                position: startPosition,
+                image: createRouteMarkerImage('start'),
+                zIndex: 200
+              });
+              startMarker.setMap(mapInstance.current);
+              routeStartMarkerInstance.current = startMarker;
+              console.log('웹 출발지 마커 생성 완료');
+            }
+
+            // 3. 도착지 마커 표시
+            if (routeResult.steps && routeResult.steps.length > 0) {
+              const endStep = routeResult.steps[routeResult.steps.length - 1];
+              const endPosition = new window.kakao.maps.LatLng(
+                endStep.endLocation.lat, 
+                endStep.endLocation.lng
+              );
+              
+              const endMarker = new window.kakao.maps.Marker({
+                position: endPosition,
+                image: createRouteMarkerImage('end'),
+                zIndex: 200
+              });
+              endMarker.setMap(mapInstance.current);
+              routeEndMarkerInstance.current = endMarker;
+              console.log('웹 도착지 마커 생성 완료');
+            }
+
+            // 4. 경로 전체가 보이도록 지도 범위 조정
+            const path = routeResult.coordinates.map(coord => 
+              new window.kakao.maps.LatLng(coord.lat, coord.lng)
+            );
+            const bounds = new window.kakao.maps.LatLngBounds();
+            path.forEach(point => bounds.extend(point));
+            mapInstance.current.setBounds(bounds);
+            console.log('웹 지도 범위 조정 완료');
+            
+            console.log('웹 경로 표시 완료');
+          } catch (error) {
+            console.error('웹 마커 생성 오류:', error);
+          }
+        }
+      }
+    }, [isMapReady, routeResult]);
+
+    // 경로 마커 이미지 생성 함수
+    const createRouteMarkerImage = (type: 'start' | 'end') => {
+      const size = new window.kakao.maps.Size(32, 32);
+      const offset = new window.kakao.maps.Point(16, 32);
+      
+      let imageSrc;
+      if (type === 'start') {
+        // 출발지 마커 (녹색 원)
+        const svg = `
+          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="14" fill="#28a745" stroke="#fff" stroke-width="2"/>
+            <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">S</text>
+          </svg>
+        `;
+        imageSrc = `data:image/svg+xml;base64,${btoa(svg)}`;
+      } else {
+        // 도착지 마커 (빨간색 원)
+        const svg = `
+          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="16" cy="16" r="14" fill="#dc3545" stroke="#fff" stroke-width="2"/>
+            <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">E</text>
+          </svg>
+        `;
+        imageSrc = `data:image/svg+xml;base64,${btoa(svg)}`;
+      }
+      
+      return new window.kakao.maps.MarkerImage(imageSrc, size, { offset });
+    };
+
   if (scriptError) {
     return (
       <View style={styles.webMapContainer}>
@@ -517,6 +659,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   latitude,
   longitude,
   markers,
+  routeResult,
   onMapCenterChange,
   onMarkerPress,
   style,
@@ -570,6 +713,47 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
       }
     };
   }, [markers, htmlContent, isMapInitialized]);
+
+  // 경로 표시 Effect (모바일 WebView)
+  useEffect(() => {
+    if (updateTimeout.current) {
+      clearTimeout(updateTimeout.current);
+    }
+
+    updateTimeout.current = setTimeout(() => {
+      if (webViewRef.current && htmlContent && isMapInitialized) {
+        if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
+          console.log('모바일 경로 표시 시작:', routeResult);
+          
+          // 경로 표시 스크립트
+          const script = `
+            if (typeof drawRoute === 'function') {
+              drawRoute(${JSON.stringify(routeResult)});
+            } else {
+              console.log('drawRoute 함수가 아직 로드되지 않음');
+            }
+            true;
+          `;
+          webViewRef.current.injectJavaScript(script);
+        } else {
+          // 경로 제거 스크립트
+          const script = `
+            if (typeof clearRoute === 'function') {
+              clearRoute();
+            }
+            true;
+          `;
+          webViewRef.current.injectJavaScript(script);
+        }
+      }
+    }, 200); // 200ms debounce
+
+    return () => {
+      if (updateTimeout.current) {
+        clearTimeout(updateTimeout.current);
+      }
+    };
+  }, [routeResult, htmlContent, isMapInitialized]);
 
   if (!htmlContent) {
     return (
@@ -708,6 +892,12 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
 });
 
 const KakaoMap: React.FC<KakaoMapProps> = (props) => {
+  console.log('KakaoMap 컴포넌트 렌더링:', { 
+    platform: Platform.OS, 
+    hasRouteResult: !!props.routeResult,
+    routeResultCoordinates: props.routeResult?.coordinates?.length 
+  });
+  
   if (Platform.OS === "web") {
     return <WebKakaoMap {...props} />;
   }

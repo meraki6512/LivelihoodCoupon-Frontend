@@ -285,6 +285,137 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'map_api_ready' }));
       }
 
+      // 경로 표시 관련 전역 변수
+      let routePolyline = null;
+      let routeStartMarker = null;
+      let routeEndMarker = null;
+
+      // 경로 표시 함수
+      function drawRoute(routeResult) {
+        try {
+          console.log('drawRoute 호출됨:', routeResult);
+          
+          if (!map) {
+            console.error('Map instance not available');
+            return;
+          }
+
+          // 기존 경로 요소들 제거
+          clearRoute();
+
+          if (!routeResult || !routeResult.coordinates || routeResult.coordinates.length === 0) {
+            console.log('경로 데이터가 없습니다');
+            return;
+          }
+
+          // 1. 경로 라인 그리기
+          const path = routeResult.coordinates.map(coord => 
+            new kakao.maps.LatLng(coord.lat, coord.lng)
+          );
+          
+          routePolyline = new kakao.maps.Polyline({
+            map: map,
+            path: path,
+            strokeWeight: 5,
+            strokeColor: '#FF385C',
+            strokeOpacity: 0.8,
+            strokeStyle: 'solid',
+            zIndex: 50
+          });
+
+          // 2. 출발지 마커 표시
+          if (routeResult.steps && routeResult.steps.length > 0) {
+            const startStep = routeResult.steps[0];
+            const startPosition = new kakao.maps.LatLng(
+              startStep.startLocation.lat, 
+              startStep.startLocation.lng
+            );
+            
+            routeStartMarker = new kakao.maps.Marker({
+              position: startPosition,
+              image: createRouteMarkerImage('start'),
+              zIndex: 200
+            });
+            routeStartMarker.setMap(map);
+          }
+
+          // 3. 도착지 마커 표시
+          if (routeResult.steps && routeResult.steps.length > 0) {
+            const endStep = routeResult.steps[routeResult.steps.length - 1];
+            const endPosition = new kakao.maps.LatLng(
+              endStep.endLocation.lat, 
+              endStep.endLocation.lng
+            );
+            
+            routeEndMarker = new kakao.maps.Marker({
+              position: endPosition,
+              image: createRouteMarkerImage('end'),
+              zIndex: 200
+            });
+            routeEndMarker.setMap(map);
+          }
+
+          // 4. 경로 전체가 보이도록 지도 범위 조정
+          const bounds = new kakao.maps.LatLngBounds();
+          path.forEach(point => bounds.extend(point));
+          map.setBounds(bounds);
+          
+          console.log('경로 표시 완료');
+        } catch (error) {
+          console.error('drawRoute 오류:', error);
+        }
+      }
+
+      // 경로 제거 함수
+      function clearRoute() {
+        try {
+          if (routePolyline) {
+            routePolyline.setMap(null);
+            routePolyline = null;
+          }
+          if (routeStartMarker) {
+            routeStartMarker.setMap(null);
+            routeStartMarker = null;
+          }
+          if (routeEndMarker) {
+            routeEndMarker.setMap(null);
+            routeEndMarker = null;
+          }
+          console.log('경로 제거 완료');
+        } catch (error) {
+          console.error('clearRoute 오류:', error);
+        }
+      }
+
+      // 경로 마커 이미지 생성 함수
+      function createRouteMarkerImage(type) {
+        const size = new kakao.maps.Size(32, 32);
+        const offset = new kakao.maps.Point(16, 32);
+        
+        let imageSrc;
+        if (type === 'start') {
+          // 출발지 마커 (녹색 원)
+          const svg = \`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#28a745" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">S</text>
+            </svg>
+          \`;
+          imageSrc = \`data:image/svg+xml;base64,\${btoa(svg)}\`;
+        } else {
+          // 도착지 마커 (빨간색 원)
+          const svg = \`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#dc3545" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">E</text>
+            </svg>
+          \`;
+          imageSrc = \`data:image/svg+xml;base64,\${btoa(svg)}\`;
+        }
+        
+        return new kakao.maps.MarkerImage(imageSrc, size, { offset });
+      }
+
     </script>  </body>
 </html>
 `;

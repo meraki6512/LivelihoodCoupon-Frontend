@@ -46,6 +46,12 @@ interface SideMenuProps {
     // 길찾기 연동을 위한 새로운 props
     onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
     onOpenSidebar?: () => void; // 사이드바 열기 함수
+    // 외부에서 전달받은 길찾기 관련 props
+    routeResult?: any;
+    isRouteLoading?: boolean;
+    routeError?: string | null;
+    startRoute?: any;
+    clearRoute?: () => void;
   }
   
   const SideMenu: React.FC<SideMenuProps> = ({
@@ -70,6 +76,11 @@ interface SideMenuProps {
     pagination,
     onSetRouteLocation, // 새로운 prop 추가
     onOpenSidebar, // 사이드바 열기 함수 추가
+    routeResult: externalRouteResult,
+    isRouteLoading: externalIsRouteLoading,
+    routeError: externalRouteError,
+    startRoute: externalStartRoute,
+    clearRoute: externalClearRoute,
   }) => {
     const [activeTab, setActiveTab] = useState<'search' | 'route'>('search');
     const [startLocation, setStartLocation] = useState('내 위치');
@@ -96,8 +107,13 @@ interface SideMenuProps {
   // 교통수단 선택 상태 (백엔드 타입에 맞춤)
   const [selectedTransportMode, setSelectedTransportMode] = useState<'driving' | 'transit' | 'walking' | 'cycling'>('driving');
 
-  // 길찾기 훅
-  const { startRoute, isLoading: isRouteLoading, routeResult, error: routeError, clearRoute } = useRoute();
+  // 길찾기 관련 상태 (외부에서 전달받은 props 우선 사용, 없으면 내부 훅 사용)
+  const internalRoute = useRoute();
+  const startRoute = externalStartRoute || internalRoute.startRoute;
+  const isRouteLoading = externalIsRouteLoading !== undefined ? externalIsRouteLoading : internalRoute.isLoading;
+  const routeResult = externalRouteResult !== undefined ? externalRouteResult : internalRoute.routeResult;
+  const routeError = externalRouteError !== undefined ? externalRouteError : internalRoute.error;
+  const clearRoute = externalClearRoute || internalRoute.clearRoute;
 
   // 텍스트 편집 시 길찾기 결과 초기화
   const handleTextEdit = () => {

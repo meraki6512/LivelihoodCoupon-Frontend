@@ -11,6 +11,7 @@ import Header from "../components/layout/Header";
 import SideMenu from "../components/layout/SideMenu";
 import { SearchResult, SearchOptions } from "../types/search";
 import { PageResponse } from "../types/api";
+import { RouteResult } from "../types/route";
 
 interface HomeWebLayoutProps {
   selectedPlaceId: string | null;
@@ -44,6 +45,11 @@ interface HomeWebLayoutProps {
   pagination: Omit<PageResponse<any>, 'content'> | null;
   onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
   onOpenSidebar?: () => void;
+  routeResult?: RouteResult | null;
+  isRouteLoading?: boolean;
+  routeError?: string | null;
+  startRoute?: any;
+  clearRoute?: () => void;
 }
 
 const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
@@ -78,6 +84,11 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   pagination,
   onSetRouteLocation,
   onOpenSidebar,
+  routeResult,
+  isRouteLoading,
+  routeError,
+  startRoute,
+  clearRoute,
 }) => {
   return (
     <View style={webStyles.container}>
@@ -110,6 +121,11 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
           pagination={pagination}
           onSetRouteLocation={onSetRouteLocation}
           onOpenSidebar={onOpenSidebar}
+          routeResult={routeResult}
+          isRouteLoading={isRouteLoading}
+          routeError={routeError}
+          startRoute={startRoute}
+          clearRoute={clearRoute}
         />
         <View style={webStyles.mapContainer}>
           {mapCenter ? (
@@ -117,6 +133,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
               latitude={mapCenter.latitude}
               longitude={mapCenter.longitude}
               markers={markers}
+              routeResult={routeResult}
               onMapCenterChange={(lat, lng) =>
                 setMapCenter({ latitude: lat, longitude: lng })
               }

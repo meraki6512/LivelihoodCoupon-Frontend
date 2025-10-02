@@ -7,6 +7,7 @@ import {
 import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useSearch } from "../hooks/useSearch";
+import { useRoute } from "../hooks/useRoute";
 import HomeWebLayout from "./HomeWebLayout";
 import HomeMobileLayout from "./HomeMobileLayout";
 import { SearchResult } from "../types/search";
@@ -67,6 +68,15 @@ export default function Home() {
     pagination,
     fetchAllMarkers,
   } = useSearch();
+
+  // 길찾기 관련 훅
+  const {
+    routeResult,
+    isLoading: isRouteLoading,
+    error: routeError,
+    startRoute,
+    clearRoute,
+  } = useRoute();
 
   // UI 상태 관리
   const [isMenuOpen, setIsMenuOpen] = useState(true); // 사이드메뉴 열림/닫힘 상태
@@ -249,6 +259,11 @@ export default function Home() {
         pagination={pagination}
         onSetRouteLocation={handleSetRouteLocation}
         onOpenSidebar={() => setIsMenuOpen(true)}
+        routeResult={routeResult}
+        isRouteLoading={isRouteLoading}
+        routeError={routeError}
+        startRoute={startRoute}
+        clearRoute={clearRoute}
       />
     );
   } else {
@@ -284,6 +299,11 @@ export default function Home() {
         pagination={pagination}
         onSetRouteLocation={handleSetRouteLocation}
         onOpenSidebar={() => setIsMenuOpen(true)}
+        routeResult={routeResult}
+        isRouteLoading={isRouteLoading}
+        routeError={routeError}
+        startRoute={startRoute}
+        clearRoute={clearRoute}
       />
     );
   }

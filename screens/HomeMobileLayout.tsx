@@ -12,6 +12,7 @@ import Header from "../components/layout/Header";
 import CustomBottomSheet from "../components/search/CustomBottomSheet";
 import { SearchResult, SearchOptions } from "../types/search";
 import { PageResponse } from "../types/api";
+import { RouteResult } from "../types/route";
 import { styles as mobileStyles } from "./Home.styles";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -46,6 +47,11 @@ interface HomeMobileLayoutProps {
   pagination: Omit<PageResponse<any>, 'content'> | null;
   onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: SearchResult) => void;
   onOpenSidebar?: () => void;
+  routeResult?: RouteResult | null;
+  isRouteLoading?: boolean;
+  routeError?: string | null;
+  startRoute?: any;
+  clearRoute?: () => void;
 }
 
 const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
@@ -79,6 +85,11 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   pagination,
   onSetRouteLocation,
   onOpenSidebar,
+  routeResult,
+  isRouteLoading,
+  routeError,
+  startRoute,
+  clearRoute,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -111,6 +122,11 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         onNextPage={onNextPage}
         pagination={pagination}
         onSetRouteLocation={onSetRouteLocation}
+        routeResult={routeResult}
+        isRouteLoading={isRouteLoading}
+        routeError={routeError}
+        startRoute={startRoute}
+        clearRoute={clearRoute}
       />
 
       {bottomSheetOpen && (
@@ -124,6 +140,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             longitude={mapCenter.longitude}
             style={mobileStyles.mapFullScreen}
             markers={markers}
+            routeResult={routeResult}
             onMapCenterChange={(lat, lng) =>
               setMapCenter({ latitude: lat, longitude: lng })
             }

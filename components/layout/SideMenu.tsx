@@ -18,10 +18,11 @@ import { Ionicons } from '@expo/vector-icons';
 import SearchOptionsComponent from '../search/SearchOptionsComponent';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from '../search/SearchResultItem';
-import { searchPlaces } from '../../services/searchApi';
+import { getAutocompleteSuggestions, searchPlaces } from '../../services/searchApi';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import { useRoute } from '../../hooks/useRoute';
 import RouteResultComponent from '../route/RouteResult';
+import { AutocompleteResponse } from '../../types/search';
 
 interface SideMenuProps {
   isOpen: boolean;
@@ -97,6 +98,8 @@ interface SideMenuProps {
   const [pressedEndButtons, setPressedEndButtons] = useState<Set<string>>(new Set());
   const [hoveredStartButtons, setHoveredStartButtons] = useState<Set<string>>(new Set());
   const [hoveredEndButtons, setHoveredEndButtons] = useState<Set<string>>(new Set());
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<AutocompleteResponse[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
   
   // 중복 검색 방지를 위한 상태
   const [isSearchingStartInProgress, setIsSearchingStartInProgress] = useState(false);
@@ -179,8 +182,30 @@ interface SideMenuProps {
   // 디바운스를 위한 타이머 참조
   const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const endSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     
     const { location } = useCurrentLocation();
+
+    const debouncedAutocomplete = (query: string) => {
+        if (autocompleteTimeoutRef.current) {
+            clearTimeout(autocompleteTimeoutRef.current);
+        }
+        autocompleteTimeoutRef.current = setTimeout(async () => {
+            if (query.trim().length > 0) {
+                try {
+                    const suggestions = await getAutocompleteSuggestions(query);
+                    setAutocompleteSuggestions(suggestions);
+                    setShowAutocomplete(true);
+                } catch (error) {
+                    console.error('Autocomplete error:', error);
+                    setAutocompleteSuggestions([]);
+                }
+            } else {
+                setAutocompleteSuggestions([]);
+                setShowAutocomplete(false);
+            }
+        }, 300);
+    };
   
     // 출발지 검색 함수
     const searchStartLocation = async (query: string) => {
@@ -368,12 +393,33 @@ interface SideMenuProps {
 
         {/* 탭 내용 */}
         {activeTab === 'search' ? (
-          <>
+                    <>
             <SearchBar
               searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
+              setSearchQuery={(text) => {
+                setSearchQuery(text);
+                debouncedAutocomplete(text);
+              }}
               onSearch={onSearch}
             />
+            {showAutocomplete && autocompleteSuggestions.length > 0 && (
+              <FlatList
+                data={autocompleteSuggestions}
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={() => {
+                      setSearchQuery(item.word);
+                      setShowAutocomplete(false);
+                    }}
+                  >
+                    <Text>{item.word}</Text>
+                  </TouchableOpacity>
+                )}
+                style={styles.suggestionsList}
+              />
+            )}
             <TouchableOpacity onPress={onSearchNearMe} style={styles.searchNearMeButton}>
               <Ionicons name="locate-outline" size={20} color="#fff" />
               <Text style={styles.searchNearMeButtonText}>내 주변 검색</Text>
@@ -382,14 +428,9 @@ interface SideMenuProps {
             {pagination && searchResults.length > 0 && (
               <View style={styles.resultCountContainer}>
                 <Text style={styles.resultCountText}>총 {pagination.totalElements}개 결과</Text>
-                {loadingAllMarkers && (
+                                {allMarkers.length > 0 && (
                   <Text style={styles.markerStatusText}>
-                    (전체 마커 로딩중...)
-                  </Text>
-                )}
-                {markerCountReachedLimit && (
-                  <Text style={styles.markerStatusText}>
-                    (지도에 {allMarkers.length}개만 표시)
+                    (지도에 {allMarkers.length}개 표시)
                   </Text>
                 )}
               </View>
@@ -1422,6 +1463,19 @@ interface SideMenuProps {
       backgroundColor: '#f5f5f5',
       borderColor: '#e0e0e0',
       opacity: 0.6,
+    },
+    suggestionsList: {
+      backgroundColor: 'white',
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: '#ddd',
+      marginTop: 5,
+      maxHeight: 200,
+    },
+    suggestionItem: {
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
     },
   });
   

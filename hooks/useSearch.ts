@@ -153,31 +153,30 @@ export const useSearch = () => {
     }
   }, [state.searchQuery, state.searchOptions]);
 
-  const fetchNextPage = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-    if (state.loadingNextPage || !state.pagination || state.pagination.isLast) return;
-    dispatch({ type: 'START_NEXT_PAGE' });
-    try {
-      const nextPage = state.pagination.currentPage + 1;
-      const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, nextPage, userLatitude, userLongitude);
-      dispatch({ type: 'NEXT_PAGE_SUCCESS', payload: resultsData });
-    } catch (err: any) {
-      console.error("다음 페이지 로딩 중 오류:", err);
-      dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "다음 페이지 로딩 중 오류가 발생했습니다." });
-    }
-  }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
-
-  const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-    if (!state.pagination || state.loadingAllMarkers || state.pagination.isLast) {
-      return;
-    }
-    
-    dispatch({ type: 'START_ALL_MARKERS_LOAD' });
-
-            const MAX_PAGES_FOR_MARKERS = 10; // 5에서 10으로 늘림
-    const startPage = state.pagination.currentPage + 1;
-    let allNewMarkers: SearchResult[] = [];
-    let limitReached = false;
-
+        const fetchNextPage = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+          if (state.loadingNextPage || !state.pagination || state.pagination.isLast || state.pagination.currentPage >= 10) return;
+          dispatch({ type: 'START_NEXT_PAGE' });
+          try {
+            const nextPage = state.pagination.currentPage + 1;
+            const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, nextPage, userLatitude, userLongitude);
+            dispatch({ type: 'NEXT_PAGE_SUCCESS', payload: resultsData });
+          } catch (err: any) {
+            console.error("다음 페이지 로딩 중 오류:", err);
+            dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "다음 페이지 로딩 중 오류가 발생했습니다." });
+          }
+        }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
+      
+        const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+          if (!state.pagination || state.loadingAllMarkers || state.pagination.isLast) {
+            return;
+          }
+          
+          dispatch({ type: 'START_ALL_MARKERS_LOAD' });
+      
+          const MAX_PAGES_FOR_MARKERS = 10;
+          const startPage = state.pagination.currentPage + 1;
+          let allNewMarkers: SearchResult[] = [];
+          let limitReached = false;
     try {
       // 순차적으로 페이지를 가져오도록 변경 (동시 호출 대신)
       for (let i = 0; i < MAX_PAGES_FOR_MARKERS; i++) {

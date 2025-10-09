@@ -58,3 +58,39 @@ export const searchPlaces = async (
     throw new ApiError('An unknown error occurred during search', 500);
   }
 };
+
+/**
+ * 백엔드 API를 통해 자동완성 제안을 가져오는 함수
+ * 
+ * @param query - 검색 키워드
+ * @returns 자동완성 제안 목록
+ */
+export const getAutocompleteSuggestions = async (
+  query: string,
+): Promise<AutocompleteResponse[]> => {
+  try {
+    const response = await apiClient.get<ApiResponse<AutocompleteResponse[]>>('/api/suggestions', {
+      params: {
+        word: query,
+      },
+    });
+
+    const payload = response.data;
+
+    if (!payload || !payload.success) {
+      throw new ApiError(payload?.error?.message || 'Failed to fetch suggestions', response.status, payload?.error);
+    }
+
+    if (!payload.data) {
+      return [];
+    }
+    
+    return payload.data;
+
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new ApiError(error.response?.data?.error?.message || 'An unknown error occurred', error.response?.status || 500, error.response?.data?.error);
+    }
+    throw new ApiError('An unknown error occurred during autocomplete search', 500);
+  }
+};

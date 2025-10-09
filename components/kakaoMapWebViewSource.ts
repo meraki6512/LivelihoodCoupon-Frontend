@@ -309,8 +309,8 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
           }
 
           // 1. 경로 라인 그리기
-          const path = routeResult.coordinates.map(coord => 
-            new kakao.maps.LatLng(coord.lat, coord.lng)
+                    const path = routeResult.coordinates.map(coord => 
+            new kakao.maps.LatLng(coord.lat, coord.lon)
           );
           
           routePolyline = new kakao.maps.Polyline({
@@ -328,7 +328,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             const startStep = routeResult.steps[0];
             const startPosition = new kakao.maps.LatLng(
               startStep.startLocation.lat, 
-              startStep.startLocation.lng
+              startStep.startLocation.lon
             );
             
             routeStartMarker = new kakao.maps.Marker({
@@ -344,7 +344,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             const endStep = routeResult.steps[routeResult.steps.length - 1];
             const endPosition = new kakao.maps.LatLng(
               endStep.endLocation.lat, 
-              endStep.endLocation.lng
+              endStep.endLocation.lon
             );
             
             routeEndMarker = new kakao.maps.Marker({

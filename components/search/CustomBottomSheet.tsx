@@ -19,12 +19,13 @@ import { SearchResult, SearchOptions } from '../../types/search';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SearchOptionsComponent from './SearchOptionsComponent';
 import { useRoute } from '../../hooks/useRoute';
-import { searchPlaces } from '../../services/searchApi';
+import { getAutocompleteSuggestions, searchPlaces } from '../../services/searchApi';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
 import RouteResultComponent from '../route/RouteResult';
 import { PageResponse } from '../../types/api';
 import SearchResultItem from './SearchResultItem';
 import { RouteResult } from '../../types/route';
+import { AutocompleteResponse } from '../../types/search';
 
 interface CustomBottomSheetProps {
   isOpen: boolean;
@@ -97,6 +98,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const { location } = useCurrentLocation();
   const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const endSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // 길찾기 관련 상태
   const [startLocation, setStartLocation] = useState('내 위치');
@@ -108,6 +110,8 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   const [showStartResults, setShowStartResults] = useState(false);
   const [showEndResults, setShowEndResults] = useState(false);
   const [selectedTransportMode, setSelectedTransportMode] = useState<'driving' | 'transit' | 'walking' | 'cycling'>('driving');
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<AutocompleteResponse[]>([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   // 길찾기 관련 상태 (외부에서 전달받은 props 우선 사용, 없으면 내부 훅 사용)
   const internalRoute = useRoute();
@@ -158,6 +162,27 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
   // 기본 위치 (서울 시청) - 현재 위치를 가져올 수 없을 때 사용
   const defaultLocation = { latitude: 37.5665, longitude: 126.9780 };
   const searchLocation = location || defaultLocation;
+
+  const debouncedAutocomplete = (query: string) => {
+    if (autocompleteTimeoutRef.current) {
+        clearTimeout(autocompleteTimeoutRef.current);
+    }
+    autocompleteTimeoutRef.current = setTimeout(async () => {
+        if (query.trim().length > 0) {
+            try {
+                const suggestions = await getAutocompleteSuggestions(query);
+                setAutocompleteSuggestions(suggestions);
+                setShowAutocomplete(true);
+            } catch (error) {
+                console.error('Autocomplete error:', error);
+                setAutocompleteSuggestions([]);
+            }
+        } else {
+            setAutocompleteSuggestions([]);
+            setShowAutocomplete(false);
+        }
+    }, 300);
+  };
 
   // 디바운스된 출발지 검색 함수
   const debouncedSearchStartLocation = async (query: string) => {
@@ -397,7 +422,34 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
           {/* 탭 내용 */}
           {activeTab === 'search' ? (
             <View style={styles.searchTabContent}>
-              <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} onSearch={handleLocalSearch} showSearchOptions={showSearchOptions} onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} />
+              <SearchBar 
+                searchQuery={searchQuery} 
+                setSearchQuery={(text) => {
+                  setSearchQuery(text);
+                  debouncedAutocomplete(text);
+                }}
+                onSearch={handleLocalSearch} 
+                showSearchOptions={showSearchOptions} 
+                onToggleSearchOptions={() => setShowSearchOptions(!showSearchOptions)} 
+              />
+              {showAutocomplete && autocompleteSuggestions.length > 0 && (
+                <FlatList
+                  data={autocompleteSuggestions}
+                  keyExtractor={(item, index) => index.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setSearchQuery(item.word);
+                        setShowAutocomplete(false);
+                      }}
+                    >
+                      <Text>{item.word}</Text>
+                    </TouchableOpacity>
+                  )}
+                  style={styles.suggestionsList}
+                />
+              )}
               <TouchableOpacity onPress={onSearchNearMe} style={styles.searchNearMeButton}>
                 <Ionicons name="locate-outline" size={20} color="#fff" />
                 <Text style={styles.searchNearMeButtonText}>내 주변 검색</Text>
@@ -747,6 +799,7 @@ const CustomBottomSheet: React.FC<CustomBottomSheetProps> = ({
                     });
                     
                     console.log('모바일 길찾기 요청 완료');
+                    onToggle(); // Close bottom sheet after successful route search
                     
                   } catch (error: any) {
                     console.error('모바일 길찾기 오류:', error);
@@ -1192,6 +1245,19 @@ const styles = StyleSheet.create({
   errorCloseButton: {
     padding: 4,
     marginLeft: 8,
+  },
+  suggestionsList: {
+    backgroundColor: 'white',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 5,
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
 });
 

@@ -19,3 +19,7 @@ export interface SearchOptions {
   radius: number;
   sort: string;
 }
+
+export interface AutocompleteResponse {
+  word: string;
+}

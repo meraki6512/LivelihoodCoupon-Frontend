@@ -528,9 +528,8 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           console.log('mapInstance.current 존재:', !!mapInstance.current);
           
           try {
-            // 1. 경로 라인 그리기
             const path = routeResult.coordinates.map(coord => 
-              new window.kakao.maps.LatLng(coord.lat, coord.lng)
+              new window.kakao.maps.LatLng(coord.lat, coord.lon)
             );
             
             console.log('경로 좌표 개수:', path.length);
@@ -556,7 +555,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               const startStep = routeResult.steps[0];
               const startPosition = new window.kakao.maps.LatLng(
                 startStep.startLocation.lat, 
-                startStep.startLocation.lng
+                startStep.startLocation.lon
               );
               
               const startMarker = new window.kakao.maps.Marker({
@@ -574,7 +573,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               const endStep = routeResult.steps[routeResult.steps.length - 1];
               const endPosition = new window.kakao.maps.LatLng(
                 endStep.endLocation.lat, 
-                endStep.endLocation.lng
+                endStep.endLocation.lon
               );
               
               const endMarker = new window.kakao.maps.Marker({
@@ -589,7 +588,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
             // 4. 경로 전체가 보이도록 지도 범위 조정
             const path = routeResult.coordinates.map(coord => 
-              new window.kakao.maps.LatLng(coord.lat, coord.lng)
+              new window.kakao.maps.LatLng(coord.lat, coord.lon)
             );
             const bounds = new window.kakao.maps.LatLngBounds();
             path.forEach(point => bounds.extend(point));

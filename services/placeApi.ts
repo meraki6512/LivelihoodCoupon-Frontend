@@ -13,7 +13,7 @@ import { ApiError } from '../utils/errors';
  */
 export async function getPlaceDetailsById(placeId: string): Promise<PlaceDetail> {
   console.log('조회할 장소 placeId:', placeId);
-  const res = await apiClient.get<ApiResponse<PlaceDetail>>(`/api/places/${placeId}`);
+    const res = await apiClient.get<ApiResponse<PlaceDetail>>(`/api/searches/${placeId}`);
   const payload = res.data;
   
   // API 응답 검증

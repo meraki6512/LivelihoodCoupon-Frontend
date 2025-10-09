@@ -26,7 +26,7 @@ export const searchPlaces = async (
   userLng: number, // 사용자 실제 경도
 ): Promise<PageResponse<SearchResult>> => {
   try {
-    const response = await apiClient.get<ApiResponse<PageResponse<SearchResult>>>('/api/search', {
+        const response = await apiClient.get<ApiResponse<PageResponse<SearchResult>>>('/api/searches', {
       params: {
         query,
         lat,

@@ -173,7 +173,7 @@ export const useSearch = () => {
     
     dispatch({ type: 'START_ALL_MARKERS_LOAD' });
 
-    const MAX_PAGES_FOR_MARKERS = 5; // 10에서 5로 줄임
+            const MAX_PAGES_FOR_MARKERS = 10; // 5에서 10으로 늘림
     const startPage = state.pagination.currentPage + 1;
     let allNewMarkers: SearchResult[] = [];
     let limitReached = false;
@@ -204,7 +204,7 @@ export const useSearch = () => {
           }
           
           // 너무 많은 마커가 쌓이면 중단 (성능 고려)
-          if (allNewMarkers.length > 200) {
+          if (allNewMarkers.length > 400) {
             limitReached = true;
             break;
           }

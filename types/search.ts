@@ -4,7 +4,8 @@
 export type SearchResult = {
   placeId: string;
   placeName: string;
-  roadAddress: string;
+    roadAddress: string;
+  roadAddressDong: string;
   lotAddress: string;
   lat: number;
   lng: number;

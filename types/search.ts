@@ -18,8 +18,22 @@ export type SearchResult = {
 export interface SearchOptions {
   radius: number;
   sort: string;
+  forceLocationSearch?: boolean;
 }
 
 export interface AutocompleteResponse {
   word: string;
+}
+
+export interface SearchRequest {
+  query: string;
+  lat: number;
+  lng: number;
+  radius: number;
+  userLat: number;
+  userLng: number;
+  page: number;
+  size: number;
+  sort: 'distance' | 'popularity';
+  forceLocationSearch?: boolean;
 }

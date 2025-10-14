@@ -15,7 +15,9 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { SearchResult } from "../types/search";
-import { styles } from "./KakaoMap.styles";
+import { commonStyles } from "./KakaoMap.common.styles";
+import { webStyles } from "./KakaoMap.web.styles";
+import { mobileStyles } from "./KakaoMap.mobile.styles";
 import { MARKER_IMAGES } from "../constants/mapConstants";
 
   const WebKakaoMap = ({
@@ -23,7 +25,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     longitude,
     markers,
     routeResult,
-    onMapCenterChange,
+    onMapIdle,
     onMarkerPress,
     showInfoWindow,
     selectedPlaceId,
@@ -46,7 +48,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     const routeEndMarkerInstance = useRef<any>(null); // 도착지 마커 인스턴스
     const [isMapReady, setIsMapReady] = useState(false);
 
-    // Effect for initial map creation
+    // Effect for initial map creation and idle listener
     useEffect(() => {
       if (mapRef.current && isLoaded && !mapInstance.current) {
         const mapContainer = mapRef.current;
@@ -58,14 +60,6 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
         const map = new window.kakao.maps.Map(mapContainer, mapOption);
         mapInstance.current = map;
 
-        const debouncedOnMapCenterChange = debounce(() => {
-          const latlng = map.getCenter();
-          onMapCenterChange &&
-            onMapCenterChange(latlng.getLat(), latlng.getLng());
-        }, 300); // 300ms debounce
-
-        window.kakao.maps.event.addListener(map, "center_changed", debouncedOnMapCenterChange);
-
         clustererInstance.current = new window.kakao.maps.MarkerClusterer({
           map: map,
           averageCenter: true,
@@ -75,13 +69,39 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
         infowindowInstance.current = new window.kakao.maps.InfoWindow({ disableAutoPan: true });
         setIsMapReady(true); // Map is ready
       }
-    }, [isLoaded, mapRef.current, latitude, longitude]);
+    }, [isLoaded, latitude, longitude]);
+
+    // Effect for idle listener
+    useEffect(() => {
+      const map = mapInstance.current;
+      if (!map || !onMapIdle) return;
+
+      const idleHandler = () => {
+        const latlng = map.getCenter();
+        onMapIdle(latlng.getLat(), latlng.getLng());
+      };
+
+      window.kakao.maps.event.addListener(map, 'idle', idleHandler);
+
+      return () => {
+        if (window.kakao && window.kakao.maps && window.kakao.maps.event) {
+          window.kakao.maps.event.removeListener(map, 'idle', idleHandler);
+        }
+      };
+    }, [onMapIdle]);
 
     // Effect for updating map center
     useEffect(() => {
       if (mapInstance.current && latitude !== undefined && longitude !== undefined) {
+        const map = mapInstance.current;
+        const currentCenter = map.getCenter();
         const newCenter = new window.kakao.maps.LatLng(latitude, longitude);
-        mapInstance.current.setCenter(newCenter);
+
+        // Only move the map if the center has actually changed
+        if (currentCenter.getLat().toFixed(6) !== newCenter.getLat().toFixed(6) || 
+            currentCenter.getLng().toFixed(6) !== newCenter.getLng().toFixed(6)) {
+          map.setCenter(newCenter);
+        }
       }
     }, [latitude, longitude]);
 
@@ -419,6 +439,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               placeId: selectedMarker.placeId,
               placeName: selectedMarker.placeName,
               roadAddress: selectedMarker.roadAddress || '',
+              roadAddressDong: selectedMarker.roadAddressDong || '',
               lotAddress: selectedMarker.lotAddress || '',
               lat: selectedMarker.lat,
               lng: selectedMarker.lng,
@@ -634,7 +655,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
   if (scriptError) {
     return (
-      <View style={styles.webMapContainer}>
+      <View style={webStyles.webMapContainer}>
         <Text>Error loading Kakao Map: {scriptError.toString()}</Text>
       </View>
     );
@@ -642,13 +663,13 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
   if (!isLoaded) {
     return (
-      <View style={styles.webMapContainer}>
+      <View style={webStyles.webMapContainer}>
         <Text>Loading Kakao Map...</Text>
       </View>
     );
   }
 
-  return <div ref={mapRef} style={styles.webMapContainer} />;
+  return <div ref={mapRef} style={webStyles.webMapContainer} />;
 };
 
 import { kakaoMapWebViewHtml } from "./kakaoMapWebViewSource";
@@ -659,7 +680,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   longitude,
   markers,
   routeResult,
-  onMapCenterChange,
+  onMapIdle,
   onMarkerPress,
   style,
 }) => {
@@ -756,7 +777,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
 
   if (!htmlContent) {
     return (
-      <View style={styles.webview}>
+      <View style={mobileStyles.webview}>
         <Text>Loading map content...</Text>
       </View>
     );
@@ -768,7 +789,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         ref={webViewRef} // WebView에 ref 할당
         originWhitelist={["*"]}
         source={{ html: htmlContent }}
-        style={[styles.webview, style]}
+        style={[mobileStyles.webview, style]}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         onLoadEnd={() => {
@@ -793,8 +814,8 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         onMessage={(event) => { // WebView 메시지 처리
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            if (data.type === "map_idle" && onMapCenterChange) {
-              onMapCenterChange(data.latitude, data.longitude);
+            if (data.type === "map_idle" && onMapIdle) {
+              onMapIdle(data.latitude, data.longitude);
             }
             if (data.type === "marker_press" && onMarkerPress) {
               onMarkerPress(data.id);
@@ -813,6 +834,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                   placeId: data.placeId,
                   placeName: data.placeName,
                   roadAddress: data.roadAddress || '',
+                  roadAddressDong: data.roadAddressDong || '', // Add missing property
                   lotAddress: data.lotAddress || '',
                   lat: data.latitude || 0,
                   lng: data.longitude || 0,
@@ -844,17 +866,17 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         animationType="fade"
         onRequestClose={() => setShowRouteMenu(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.routeMenuContainer}>
-            <Text style={styles.routeMenuTitle}>
+        <View style={commonStyles.modalOverlay}>
+          <View style={commonStyles.routeMenuContainer}>
+            <Text style={commonStyles.routeMenuTitle}>
               {selectedPlaceInfo?.placeName}
             </Text>
-            <Text style={styles.routeMenuSubtitle}>
+            <Text style={commonStyles.routeMenuSubtitle}>
               길찾기 옵션을 선택하세요
             </Text>
             
             <TouchableOpacity
-              style={styles.routeMenuButton}
+              style={commonStyles.routeMenuButton}
               onPress={() => {
                 if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
                   (global as any).setRouteLocationFromInfoWindow('departure', selectedPlaceInfo);
@@ -862,11 +884,11 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                 }
               }}
             >
-              <Text style={styles.routeMenuButtonText}>출발지로 설정</Text>
+              <Text style={commonStyles.routeMenuButtonText}>출발지로 설정</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.routeMenuButton}
+              style={commonStyles.routeMenuButton}
               onPress={() => {
                 if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
                   (global as any).setRouteLocationFromInfoWindow('arrival', selectedPlaceInfo);
@@ -874,14 +896,14 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                 }
               }}
             >
-              <Text style={styles.routeMenuButtonText}>도착지로 설정</Text>
+              <Text style={commonStyles.routeMenuButtonText}>도착지로 설정</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={styles.routeMenuCancelButton}
+              style={commonStyles.routeMenuCancelButton}
               onPress={() => setShowRouteMenu(false)}
             >
-              <Text style={styles.routeMenuCancelButtonText}>취소</Text>
+              <Text style={commonStyles.routeMenuCancelButtonText}>취소</Text>
             </TouchableOpacity>
           </View>
         </View>

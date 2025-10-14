@@ -76,6 +76,29 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         }
       }
 
+      function updateMapCenterWithMarkers(lat, lng, markersData) {
+        if (map) {
+          const newCenter = new kakao.maps.LatLng(lat, lng);
+          map.setCenter(newCenter);
+
+          if (markersData && markersData.length > 0) {
+            if (markersData.length > 1) {
+              const bounds = new kakao.maps.LatLngBounds();
+              markersData.forEach(marker => {
+                bounds.extend(new kakao.maps.LatLng(marker.lat, marker.lng));
+              });
+              map.setBounds(bounds);
+            } else if (markersData.length === 1) {
+              // 단일 마커의 경우, 적절한 줌 레벨 설정 (예: 3)
+              map.setLevel(3);
+            } else {
+              // 마커가 없는 경우, 기본 줌 레벨 설정 (예: 5)
+              map.setLevel(5);
+            }
+          }
+        }
+      }
+
       function createDotMarkerImage(isSelected) {
         const size = isSelected ? 24 : 16; // 선택됨 24px, 기본 16px
         const borderWidth = isSelected ? 2 : 1;

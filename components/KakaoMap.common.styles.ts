@@ -1,14 +1,6 @@
 import { StyleSheet } from "react-native";
 
-export const styles = StyleSheet.create({
-  webMapContainer: {
-    flex: 1,
-    width: "100%",
-  },
-  webview: {
-    flex: 1,
-    width: "100%",
-  },
+export const commonStyles = StyleSheet.create({
   // 드롭다운 메뉴 스타일
   modalOverlay: {
     flex: 1,

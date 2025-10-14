@@ -1,6 +1,6 @@
 import apiClient from './apiClient';
 import axios from 'axios';
-import { SearchResult } from '../types/search';
+import {AutocompleteResponse, SearchResult} from '../types/search';
 import { ApiResponse, PageResponse } from '../types/api';
 import { ApiError } from '../utils/errors';
 
@@ -24,6 +24,7 @@ export const searchPlaces = async (
   page: number = 1,
   userLat: number, // 사용자 실제 위도
   userLng: number, // 사용자 실제 경도
+  forceLocationSearch?: boolean,
 ): Promise<PageResponse<SearchResult>> => {
   try {
         const response = await apiClient.get<ApiResponse<PageResponse<SearchResult>>>('/api/searches', {
@@ -36,6 +37,7 @@ export const searchPlaces = async (
         page,
         userLat: userLat, // 사용자 위치 기반 거리 계산을 위해 추가
         userLng: userLng,
+        forceLocationSearch,
       },
     });
 
@@ -67,12 +69,14 @@ export const searchPlaces = async (
  */
 export const getAutocompleteSuggestions = async (
   query: string,
+  signal?: AbortSignal, // Add this parameter
 ): Promise<AutocompleteResponse[]> => {
   try {
     const response = await apiClient.get<ApiResponse<AutocompleteResponse[]>>('/api/suggestions', {
       params: {
         word: query,
       },
+      signal, // Pass the signal here
     });
 
     const payload = response.data;
@@ -89,6 +93,10 @@ export const getAutocompleteSuggestions = async (
 
   } catch (error) {
     if (axios.isAxiosError(error)) {
+      // Handle aborted requests specifically
+      if (axios.isCancel(error)) {
+        throw new ApiError('Request aborted', 499); // Custom code for aborted requests
+      }
       throw new ApiError(error.response?.data?.error?.message || 'An unknown error occurred', error.response?.status || 500, error.response?.data?.error);
     }
     throw new ApiError('An unknown error occurred during autocomplete search', 500);

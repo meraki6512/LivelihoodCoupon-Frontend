@@ -15,6 +15,8 @@ export interface PageResponse<T> {
   totalPages: number;
   isLast: boolean;
   currentPage: number;
+  searchCenterLat?: number;
+  searchCenterLng?: number;
 }
 
 

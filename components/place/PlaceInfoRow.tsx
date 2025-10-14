@@ -1,5 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
+import { commonStyles } from './styles/PlaceInfoRow.common.styles';
+import { webStyles } from './styles/PlaceInfoRow.web.styles';
+import { mobileStyles } from './styles/PlaceInfoRow.mobile.styles';
+
 
 /**
  * PlaceInfoRow 컴포넌트의 Props 타입
@@ -15,26 +19,12 @@ type Props = {
  */
 export default function PlaceInfoRow({ label, value }: Props) {
   return (
-    <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value || '-'}</Text>
+    <View style={commonStyles.row}>
+      <Text style={commonStyles.label}>{label}</Text>
+      <Text style={commonStyles.value}>{value || '-'}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    marginBottom: 8,
-  },
-  label: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 2,
-  },
-  value: {
-    fontSize: 14,
-    color: '#111',
-  },
-});
 
 

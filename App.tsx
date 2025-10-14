@@ -1,9 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import Home from './screens/Home';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { commonStyles } from './styles/App.common.styles';
+import { webStyles } from './styles/App.web.styles';
+import { mobileStyles } from './styles/App.mobile.styles';
+
 
 const queryClient = new QueryClient();
 
@@ -12,7 +16,7 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <QueryClientProvider client={queryClient}>
-          <View style={styles.container}>
+          <View style={commonStyles.container}>
             <Home />
             <StatusBar style="auto" />
           </View>
@@ -22,9 +26,3 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-});

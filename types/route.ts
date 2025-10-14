@@ -11,7 +11,7 @@ export type TransportMode = 'driving' | 'transit' | 'walking' | 'cycling';
  * 좌표 정보 (백엔드 Coordinate DTO에 맞춤)
  */
 export interface Coordinate {
-  lng: number;  // 경도 (X 좌표)
+  lon: number;  // 경도 (X 좌표)
   lat: number;  // 위도 (Y 좌표)
 }
 

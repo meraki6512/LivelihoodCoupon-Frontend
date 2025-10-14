@@ -13,10 +13,11 @@ import CustomBottomSheet from "../components/search/CustomBottomSheet";
 import { SearchResult, SearchOptions } from "../types/search";
 import { PageResponse } from "../types/api";
 import { RouteResult } from "../types/route";
-import { styles as mobileStyles } from "./Home.styles";
+import { mobileStyles } from "./HomeMobileLayout.styles";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HomeMobileLayoutProps {
+  // Props for HomeMobileLayout
   selectedPlaceId: string | null;
   setSelectedPlaceId: (id: string | null) => void;
   showInfoWindow: boolean;
@@ -25,6 +26,7 @@ interface HomeMobileLayoutProps {
   location: { latitude: number; longitude: number } | null;
   mapCenter: { latitude: number; longitude: number } | null;
   setMapCenter: (center: { latitude: number; longitude: number }) => void;
+  onMapIdle: (lat: number, lng: number) => void;
   markers: any[]; // Adjust type as needed
   bottomSheetOpen: boolean;
   setBottomSheetOpen: (isOpen: boolean) => void;
@@ -35,7 +37,6 @@ interface HomeMobileLayoutProps {
   isLoading: boolean;
   errorMsg: string | null;
   onSearch: () => Promise<void>;
-  onSearchNearMe: () => Promise<void>; // Add this prop
   onSelectResult: (item: SearchResult) => void;
   onMarkerPress: (placeId: string, lat?: number, lng?: number) => void;
   searchOptions: SearchOptions;
@@ -52,6 +53,8 @@ interface HomeMobileLayoutProps {
   routeError?: string | null;
   startRoute?: any;
   clearRoute?: () => void;
+  showSearchInAreaButton: boolean;
+  handleSearchInArea: () => void;
 }
 
 const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
@@ -63,6 +66,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   location,
   mapCenter,
   setMapCenter,
+  onMapIdle,
   markers,
   bottomSheetOpen,
   setBottomSheetOpen,
@@ -73,7 +77,6 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   isLoading,
   errorMsg,
   onSearch,
-  onSearchNearMe, // Destructure the new prop
   onSelectResult,
   onMarkerPress,
   searchOptions,
@@ -90,6 +93,8 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
   routeError,
   startRoute,
   clearRoute,
+  showSearchInAreaButton,
+  handleSearchInArea,
 }) => {
   const insets = useSafeAreaInsets();
 
@@ -108,7 +113,6 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onSearch={onSearch}
-        onSearchNearMe={onSearchNearMe} // Pass the new prop
         searchResults={searchResults}
         allMarkers={allMarkers}
         isLoading={isLoading}
@@ -141,9 +145,7 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             style={mobileStyles.mapFullScreen}
             markers={markers}
             routeResult={routeResult}
-            onMapCenterChange={(lat, lng) =>
-              setMapCenter({ latitude: lat, longitude: lng })
-            }
+            onMapIdle={onMapIdle}
             onMarkerPress={(id, lat, lng) => id && onMarkerPress(id, lat, lng)}
             showInfoWindow={showInfoWindow}
             selectedPlaceId={selectedPlaceId || undefined}
@@ -152,6 +154,21 @@ const HomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             onCloseInfoWindow={() => setShowInfoWindow(false)}
             onSetRouteLocation={onSetRouteLocation}
           />
+          {showSearchInAreaButton && (
+            <TouchableOpacity
+              style={mobileStyles.searchInAreaButton}
+              onPress={handleSearchInArea}
+            >
+              <Text style={mobileStyles.searchInAreaButtonText}>현재 지도에서 검색</Text>
+            </TouchableOpacity>
+          )}
+          {location && (
+            <TouchableOpacity 
+              style={mobileStyles.currentLocationButton}
+              onPress={() => setMapCenter({ latitude: location.latitude, longitude: location.longitude })}>
+              <Ionicons name="locate" size={24} color="#000" />
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         <View style={mobileStyles.loadingContainer}>

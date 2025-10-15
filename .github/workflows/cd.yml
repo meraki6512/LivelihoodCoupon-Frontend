@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies and build
         run: |
           npm ci --legacy-peer-deps
-          npm install @expo/webpack-config@^18.0.0 react-dom react-native-web --legacy-peer-deps   
+          #npm install @expo/webpack-config@^18.0.0 react-dom react-native-web --legacy-peer-deps   
           # 빌드 전 env 주입
           export KAKAO_MAP_JS_KEY=${{ secrets.KAKAO_MAP_JS_KEY }}
           export KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}

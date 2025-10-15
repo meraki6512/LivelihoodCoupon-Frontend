@@ -1,4 +1,6 @@
 import { StyleSheet } from "react-native";
+import { COLORS } from "../constants/colors";
+import { SIZES } from "../constants/sizes";
 
 export const mobileStyles = StyleSheet.create({
   safeAreaContainer: {
@@ -15,9 +17,9 @@ export const mobileStyles = StyleSheet.create({
     fontSize: 16,
   },
   errorContainer: {
-    backgroundColor: '#ff385c',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    backgroundColor: COLORS.red,
+    paddingVertical: SIZES.spacing.sm,
+    paddingHorizontal: SIZES.spacing.base,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -32,36 +34,71 @@ export const mobileStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f0f0f0", // Add a background color for visibility
+    backgroundColor: COLORS.backgroundGray,
   },
   currentLocationButton: {
     position: 'absolute',
-    bottom: 120, // Adjust this value based on your layout
-    right: 20,
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    width: 50,
-    height: 50,
+    bottom: 80, // 기본값, 동적으로 조정됨
+    right: SIZES.spacing.lg,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius.xxl,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...SIZES.shadow.base,
   },
   searchInAreaButton: {
     position: 'absolute',
-    bottom: 120, // Adjust this value based on your layout
+    bottom: 120, // 기본값, 동적으로 조정됨
     alignSelf: 'center',
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SIZES.spacing.md,
+    paddingVertical: SIZES.spacing.sm,
+    borderRadius: SIZES.borderRadius.xl,
     zIndex: 999,
+    ...SIZES.shadow.sm,
   },
   searchInAreaButtonText: {
-    color: 'white',
+    color: COLORS.blue,
     fontWeight: 'bold',
+  },
+  routeResultContainer: {
+    position: 'absolute',
+    bottom: 120,
+    left: 80,
+    right: 80,
+    zIndex: 1000,
+  },
+  routeSummaryCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius.lg,
+    padding: SIZES.spacing.md,
+    ...SIZES.shadow.base,
+  },
+  routeSummaryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  routeSummaryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  routeSummaryStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  routeSummaryValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  routeSummaryLabel: {
+    fontSize: 12,
+    color: '#666',
   },
 });

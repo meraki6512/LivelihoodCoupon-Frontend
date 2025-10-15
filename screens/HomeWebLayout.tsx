@@ -55,6 +55,7 @@ interface HomeWebLayoutProps {
   clearRoute?: () => void;
   showSearchInAreaButton: boolean;
   handleSearchInArea: () => void;
+  locationError?: string | null;
 }
 
 const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
@@ -96,6 +97,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   clearRoute,
   showSearchInAreaButton,
   handleSearchInArea,
+  locationError,
 }) => {
   return (
     <View style={webStyles.container}>

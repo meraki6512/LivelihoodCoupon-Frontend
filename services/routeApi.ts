@@ -20,9 +20,6 @@ export const getRoute = async (
   routeType: TransportMode = 'driving'
 ): Promise<RouteResponse> => {
   try {
-    console.log('길찾기 요청 데이터:', {
-      startLng, startLat, endLng, endLat, routeType
-    });
     
     const response = await apiClient.get<CustomApiResponse<any>>('/api/routes/search', {
       params: {
@@ -34,8 +31,6 @@ export const getRoute = async (
       },
     });
     const payload = response.data;
-    
-    console.log('길찾기 응답 데이터:', payload);
     
     if (!payload || !payload.success) {
       throw new ApiError(

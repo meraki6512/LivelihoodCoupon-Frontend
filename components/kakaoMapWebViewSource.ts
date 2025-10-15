@@ -16,6 +16,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       let clusterer;
       let userLocationMarker = null;
       let infoWindowOverlay = null;
+      let markerImages = null;
 
       function initMap(lat, lng) {
         const mapContainer = document.getElementById('map');
@@ -29,23 +30,25 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         };
         try {
           map = new kakao.maps.Map(mapContainer, mapOption);
+          
+          // 지도 초기화 완료 (마커는 updateMarkers에서 처리)
 
           // markerImages 초기화 로직
           markerImages = {
             default: new kakao.maps.MarkerImage(
               createDotMarkerImage(false),
-              new kakao.maps.Size(16, 16), // New size
-              { offset: new kakao.maps.Point(8, 8) } // New offset (size / 2)
+              new kakao.maps.Size(16, 16),
+              { offset: new kakao.maps.Point(8, 8) }
             ),
             selected: new kakao.maps.MarkerImage(
               createDotMarkerImage(true),
-              new kakao.maps.Size(24, 24), // New size
-              { offset: new kakao.maps.Point(12, 12) } // New offset (size / 2)
+              new kakao.maps.Size(24, 24),
+              { offset: new kakao.maps.Point(12, 12) }
             ),
             userLocation: new kakao.maps.MarkerImage(
               'MARKER_IMAGE_USER_LOCATION_PLACEHOLDER',
-              new kakao.maps.Size(36, 36),
-              { offset: new kakao.maps.Point(18, 36) }
+              new kakao.maps.Size(28, 28),
+              { offset: new kakao.maps.Point(14, 14) }
             )
           };
 
@@ -54,11 +57,18 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
           return;
         }
 
-        clusterer = new kakao.maps.MarkerClusterer({
-          map: map,
-          averageCenter: true,
-          minLevel: 7,
-        });
+        try {
+          clusterer = new kakao.maps.MarkerClusterer({
+            map: map,
+            averageCenter: true,
+            minLevel: 7,
+          });
+          // 클러스터 초기화 성공
+        } catch (clusterError) {
+          // 클러스터 초기화 실패
+          // 클러스터 없이도 작동하도록 설정
+          clusterer = null;
+        }
 
         kakao.maps.event.addListener(map, 'idle', function() {
           const latlng = map.getCenter();
@@ -70,101 +80,113 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         });
       }
 
-      function updateMapCenter(lat, lng) {
-        if (map) {
-          map.setCenter(new kakao.maps.LatLng(lat, lng));
-        }
-      }
+function updateMapCenter(lat, lng) {
+  if (map) {
+    const moveLatLon = new kakao.maps.LatLng(lat, lng);
+    map.setCenter(moveLatLon);
+    
+    setTimeout(() => {
+      const actualCenter = map.getCenter();
+    }, 100);
+  }
+}
 
-      function updateMapCenterWithMarkers(lat, lng, markersData) {
-        if (map) {
-          const newCenter = new kakao.maps.LatLng(lat, lng);
-          map.setCenter(newCenter);
 
-          if (markersData && markersData.length > 0) {
-            if (markersData.length > 1) {
-              const bounds = new kakao.maps.LatLngBounds();
-              markersData.forEach(marker => {
-                bounds.extend(new kakao.maps.LatLng(marker.lat, marker.lng));
-              });
-              map.setBounds(bounds);
-            } else if (markersData.length === 1) {
-              // 단일 마커의 경우, 적절한 줌 레벨 설정 (예: 3)
-              map.setLevel(3);
-            } else {
-              // 마커가 없는 경우, 기본 줌 레벨 설정 (예: 5)
-              map.setLevel(5);
-            }
-          }
-        }
-      }
 
       function createDotMarkerImage(isSelected) {
-        const size = isSelected ? 24 : 16; // 선택됨 24px, 기본 16px
+        const size = isSelected ? 24 : 16;
         const borderWidth = isSelected ? 2 : 1;
-        const fillColor = isSelected ? '#FF385C' : '#007bff'; // 선택됨 빨간색, 기본 파란색
-        const borderColor = '#fff'; // 흰색 테두리
+        const fillColor = isSelected ? '#FF385C' : '#007bff';
+        const borderColor = '#fff';
         const svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg">' +
                     '<circle cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + ((size - borderWidth * 2) / 2) + '" fill="' + fillColor + '" stroke="' + borderColor + '" stroke-width="' + borderWidth + '"/>' +
                     '</svg>';
-        return 'data:image/svg+xml;base64,' + btoa(svg); // 수정됨
+        return 'data:image/svg+xml;base64,' + btoa(svg);
       }
-
-      let markerImages;
 
       function updateMarkers(markersData) {
         try {
-          if (!map || !clusterer) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Map or clusterer not initialized in updateMarkers.' }));
+          if (!map) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Map not initialized in updateMarkers.' }));
             return;
           }
-
-          clusterer.clear();
+          
+          // markerImages 초기화 (한 번만)
+          if (!markerImages) {
+            markerImages = {
+              default: new kakao.maps.MarkerImage(
+                createDotMarkerImage(false),
+                new kakao.maps.Size(16, 16),
+                { offset: new kakao.maps.Point(8, 8) }
+              ),
+              selected: new kakao.maps.MarkerImage(
+                createDotMarkerImage(true),
+                new kakao.maps.Size(24, 24),
+                { offset: new kakao.maps.Point(12, 12) }
+              ),
+              userLocation: new kakao.maps.MarkerImage(
+                'MARKER_IMAGE_USER_LOCATION_PLACEHOLDER',
+                new kakao.maps.Size(28, 28),
+                { offset: new kakao.maps.Point(14, 14) }
+              )
+            };
+          }
+          
+          // 현재 마커 데이터 저장
+          window.currentMarkers = markersData;
+          if (clusterer) {
+            clusterer.clear();
+          } else if (window.existingMarkers) {
+            window.existingMarkers.forEach(marker => marker.setMap(null));
+            window.existingMarkers = [];
+          }
+          
           if (userLocationMarker) {
-              userLocationMarker.setMap(null);
+            userLocationMarker.setMap(null);
           }
 
+          // 마커 데이터 분리
           const userLocationData = markersData.find(m => m.markerType === 'userLocation');
           const placeMarkersData = markersData.filter(m => m.markerType !== 'userLocation');
-
           if (userLocationData) {
-              userLocationMarker = new kakao.maps.Marker({
-                  position: new kakao.maps.LatLng(userLocationData.lat, userLocationData.lng),
-                  image: markerImages.userLocation,
-                  zIndex: 101
-              });
-              userLocationMarker.setMap(map);
+            userLocationMarker = new kakao.maps.Marker({
+              position: new kakao.maps.LatLng(userLocationData.lat, userLocationData.lng),
+              image: markerImages.userLocation,
+              zIndex: 101
+            });
+            userLocationMarker.setMap(map);
           }
 
           if (placeMarkersData && placeMarkersData.length > 0) {
-              const kakaoMarkers = placeMarkersData.map(markerData => {
-                  const isSelected = markerData.markerType === 'selected';
-                  const marker = new kakao.maps.Marker({
-                      position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
-                      image: isSelected ? markerImages.selected : markerImages.default,
-                      zIndex: isSelected ? 100 : 1,
-                  });
-
-                  kakao.maps.event.addListener(marker, 'click', function() {
-                      // 기존 InfoWindow 제거
-                      if (infoWindowOverlay) {
-                          infoWindowOverlay.setMap(null);
-                      }
-                      
-                      // InfoWindow 표시
-                      showInfoWindow(markerData);
-                      
-                      window.ReactNativeWebView.postMessage(JSON.stringify({
-                          type: 'marker_press',
-                          id: markerData.placeId
-                      }));
-                  });
-                  return marker;
+            const kakaoMarkers = placeMarkersData.map(markerData => {
+              const isSelected = markerData.markerType === 'selected';
+              const marker = new kakao.maps.Marker({
+                position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
+                image: isSelected ? markerImages.selected : markerImages.default,
+                zIndex: isSelected ? 100 : 1,
               });
+
+              kakao.maps.event.addListener(marker, 'click', function() {
+                if (infoWindowOverlay) {
+                  infoWindowOverlay.setMap(null);
+                }
+                
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                  type: 'marker_press',
+                  id: markerData.placeId
+                }));
+              });
+              return marker;
+            });
+            
+            if (clusterer) {
               clusterer.addMarkers(kakaoMarkers);
+            } else {
+              kakaoMarkers.forEach(marker => marker.setMap(map));
+              window.existingMarkers = kakaoMarkers;
+            }
           }
         } catch (e) {
-          console.error('Error in updateMarkers:', e);
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: 'Error in updateMarkers: ' + e.message }));
         }
       }
@@ -296,7 +318,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
         infoWindowOverlay = new kakao.maps.CustomOverlay({
           position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: infoWindowContent,
-          yAnchor: 1.1, // 마커 위쪽에 배치
+          yAnchor: 1.1,
           zIndex: 1000,
         });
 
@@ -313,10 +335,39 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
       let routeStartMarker = null;
       let routeEndMarker = null;
 
+      // 경로 마커 이미지 생성 함수
+      function createRouteMarkerImage(type) {
+        const size = new kakao.maps.Size(32, 32);
+        const offset = new kakao.maps.Point(16, 32);
+        
+        let imageSrc;
+        if (type === 'start') {
+          // 출발지 마커 (녹색 원)
+          const svg = \`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#28a745" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">S</text>
+            </svg>
+          \`;
+          imageSrc = 'data:image/svg+xml;base64,' + btoa(svg);
+        } else {
+          // 도착지 마커 (빨간색 원)
+          const svg = \`
+            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="14" fill="#dc3545" stroke="#fff" stroke-width="2"/>
+              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">E</text>
+            </svg>
+          \`;
+          imageSrc = 'data:image/svg+xml;base64,' + btoa(svg);
+        }
+        
+        return new kakao.maps.MarkerImage(imageSrc, size, { offset });
+      }
+
       // 경로 표시 함수
       function drawRoute(routeResult) {
         try {
-          console.log('drawRoute 호출됨:', routeResult);
+          // drawRoute 호출됨
           
           if (!map) {
             console.error('Map instance not available');
@@ -327,7 +378,7 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
           clearRoute();
 
           if (!routeResult || !routeResult.coordinates || routeResult.coordinates.length === 0) {
-            console.log('경로 데이터가 없습니다');
+            // 경로 데이터가 없습니다
             return;
           }
 
@@ -378,12 +429,27 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             routeEndMarker.setMap(map);
           }
 
-          // 4. 경로 전체가 보이도록 지도 범위 조정
-          const bounds = new kakao.maps.LatLngBounds();
-          path.forEach(point => bounds.extend(point));
-          map.setBounds(bounds);
+          // 4. 경로 안내 중심 좌표를 기준으로 지도 중심 설정
+          const screenHeight = window.innerHeight;
+          const routePanelHeight = screenHeight * 0.25; // 25% 가정
+          const targetPosition = routePanelHeight + (screenHeight - routePanelHeight) / 2;
           
-          console.log('경로 표시 완료');
+          // 경로 안내 중심 좌표 계산 (출발지와 도착지의 중점)
+          const startStep = routeResult.steps[0];
+          const endStep = routeResult.steps[routeResult.steps.length - 1];
+          const centerLat = (startStep.startLocation.lat + endStep.endLocation.lat) / 2;
+          const centerLng = (startStep.startLocation.lon + endStep.endLocation.lon) / 2;
+          
+          // 경로 안내 중심을 목표 위치에 맞춰서 지도 중심 조정
+          const offsetLat = (targetPosition / screenHeight - 0.5) * 0.01; // 임시 오프셋
+          const adjustedCenter = new kakao.maps.LatLng(
+            centerLat + offsetLat,
+            centerLng
+          );
+          
+          map.setCenter(adjustedCenter);
+          
+          // 경로 표시 완료
         } catch (error) {
           console.error('drawRoute 오류:', error);
         }
@@ -404,40 +470,198 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
             routeEndMarker.setMap(null);
             routeEndMarker = null;
           }
-          console.log('경로 제거 완료');
+          // 경로 제거 완료
         } catch (error) {
           console.error('clearRoute 오류:', error);
         }
       }
 
-      // 경로 마커 이미지 생성 함수
-      function createRouteMarkerImage(type) {
-        const size = new kakao.maps.Size(32, 32);
-        const offset = new kakao.maps.Point(16, 32);
-        
-        let imageSrc;
-        if (type === 'start') {
-          // 출발지 마커 (녹색 원)
-          const svg = \`
-            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" fill="#28a745" stroke="#fff" stroke-width="2"/>
-              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">S</text>
-            </svg>
-          \`;
-          imageSrc = \`data:image/svg+xml;base64,\${btoa(svg)}\`;
-        } else {
-          // 도착지 마커 (빨간색 원)
-          const svg = \`
-            <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="16" cy="16" r="14" fill="#dc3545" stroke="#fff" stroke-width="2"/>
-              <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">E</text>
-            </svg>
-          \`;
-          imageSrc = \`data:image/svg+xml;base64,\${btoa(svg)}\`;
+      // 검색 결과 마커들 제거 함수
+      function clearSearchMarkers() {
+        try {
+          if (clusterer) {
+            clusterer.clear();
+          }
+          // 검색 결과 마커들 제거 완료
+        } catch (error) {
+          console.error('clearSearchMarkers 오류:', error);
         }
-        
-        return new kakao.maps.MarkerImage(imageSrc, size, { offset });
       }
+
+        // 검색 결과에 맞는 줌 레벨 조정 함수
+        function adjustZoomForSearchResults() {
+          try {
+            if (!map) {
+              console.error('Map instance not available');
+              return;
+            }
+
+            // 검색 결과에 적합한 고정 줌 레벨 설정
+            // 6레벨: 적당한 범위로 검색 결과들이 잘 보이도록 설정
+            const targetLevel = 6;
+            
+            console.log('=== 검색 결과 줌 레벨 조정 ===');
+            console.log('현재 줌 레벨:', map.getLevel());
+            console.log('목표 줌 레벨:', targetLevel);
+            
+            // 줌 레벨 변경
+            map.setLevel(targetLevel);
+            
+            console.log('줌 레벨 조정 완료');
+            
+          } catch (error) {
+            console.error('adjustZoomForSearchResults 오류:', error);
+          }
+        }
+
+        // 길찾기 결과에 맞는 줌 레벨 조정 함수
+        function adjustZoomForRouteResults() {
+          try {
+            if (!map) {
+              console.error('Map instance not available');
+              return;
+            }
+
+            // 경로 거리에 따른 동적 줌 레벨 계산
+            const routeDistance = window.currentRouteResult?.totalDistance || 1000; // 미터 단위
+            let targetLevel;
+            
+            if (routeDistance < 1000) {
+              targetLevel = 10;
+            } else if (routeDistance < 1500) {
+              targetLevel = 5;
+            } else if (routeDistance < 2000) {
+              targetLevel = 4;
+            } else if (routeDistance < 2500) {
+              targetLevel = 3;
+            } else if (routeDistance < 3000) {
+              targetLevel = 2;
+            } else {
+              targetLevel = 1;
+            }
+            
+            console.log('=== 길찾기 결과 줌 레벨 조정 ===');
+            console.log('경로 거리:', routeDistance, 'm');
+            console.log('경로 거리 (km):', (routeDistance / 1000).toFixed(2), 'km');
+            console.log('현재 줌 레벨:', map.getLevel());
+            console.log('목표 줌 레벨:', targetLevel);
+            console.log('거리 구간:', routeDistance < 1000 ? '1km 미만' : routeDistance < 4000 ? '1km-4km' : '4km 이상');
+            
+            // 줌 레벨 변경
+            map.setLevel(targetLevel);
+            
+            console.log('길찾기 줌 레벨 조정 완료');
+            
+          } catch (error) {
+            console.error('adjustZoomForRouteResults 오류:', error);
+          }
+        }
+
+        // 상세 바텀시트를 고려한 지도 중심 조정 함수 (간소화)
+        function adjustMapCenterForDetailSheet(detailSheetHeightRatio = 0.6) {
+        try {
+          if (!map) {
+            console.error('Map instance not available');
+            return;
+          }
+          
+          // 현재 지도 중심을 원래 위치로 저장 (복원용)
+          if (!window.originalMapCenter) {
+            window.originalMapCenter = map.getCenter();
+          }
+
+          const screenHeight = window.innerHeight;
+          const bottomSheetHeight = screenHeight * detailSheetHeightRatio;
+          const currentCenter = map.getCenter();
+          const centerLat = currentCenter.getLat();
+          const centerLng = currentCenter.getLng();
+          
+          // 간소화된 오프셋 계산
+          const offsetPixels = screenHeight - bottomSheetHeight;
+          const routeDistance = window.currentRouteResult?.totalDistance || 1000;
+          const distanceFactor = Math.min(routeDistance / 1000, 3);
+          const visibleRatio = (screenHeight - bottomSheetHeight) / screenHeight;
+          const ratioFactor = Math.max(0.5, visibleRatio);
+          const combinedFactor = distanceFactor * ratioFactor;
+          const additionalOffset = screenHeight * 0.15 * 0.00001;
+          const offsetLat = (offsetPixels * 0.00001 * combinedFactor) + additionalOffset;
+          
+          const adjustedCenter = new kakao.maps.LatLng(
+            centerLat - offsetLat,
+            centerLng
+          );
+          
+          map.setCenter(adjustedCenter);
+          
+        } catch (error) {
+          console.error('adjustMapCenterForDetailSheet 오류:', error);
+        }
+      }
+
+      // 바텀시트가 접힐 때 지도 중심을 원래 위치로 복원
+      window.restoreMapCenterForBottomSheet = function() {
+        try {
+          console.log('=== 바텀시트 접힘 - 지도 중심 복원 시작 ===');
+          
+          // 이전에 저장된 원래 지도 중심이 있다면 복원
+          if (window.originalMapCenter) {
+            console.log('원래 지도 중심으로 복원:', window.originalMapCenter.getLat(), window.originalMapCenter.getLng());
+            map.setCenter(window.originalMapCenter);
+            
+            // 복원 후 확인
+            setTimeout(() => {
+              console.log('=== 지도 중심 복원 후 ===');
+              console.log('복원된 지도 중심:', map.getCenter().getLat(), map.getCenter().getLng());
+            }, 100);
+          } else {
+            console.log('저장된 원래 지도 중심이 없음 - 복원 불가');
+          }
+          
+        } catch (error) {
+          console.error('restoreMapCenterForBottomSheet 오류:', error);
+        }
+      }
+
+      // 모든 검색 결과 마커 숨기기 (길찾기/상세안내 모드용)
+      window.hideAllSearchMarkers = function() {
+        try {
+          console.log('=== 모든 검색 결과 마커 숨김 ===');
+          
+          // 검색 결과 마커들 숨기기
+          if (window.searchMarkers && window.searchMarkers.length > 0) {
+            window.searchMarkers.forEach(marker => {
+              marker.setMap(null);
+            });
+            console.log('검색 결과 마커 개수:', window.searchMarkers.length, '개 숨김');
+          }
+          
+          // 검색 결과 마커 배열 초기화
+          window.searchMarkers = [];
+          
+          // 선택된 장소 마커도 숨기기 (길찾기 모드에서는 필요 없음)
+          if (window.selectedMarker) {
+            window.selectedMarker.setMap(null);
+            window.selectedMarker = null;
+            console.log('선택된 장소 마커 숨김');
+          }
+          
+          // 추가로 모든 마커를 강제로 숨기기
+          if (window.allMarkers && window.allMarkers.length > 0) {
+            window.allMarkers.forEach(marker => {
+              marker.setMap(null);
+            });
+            console.log('전체 마커 개수:', window.allMarkers.length, '개 숨김');
+            window.allMarkers = [];
+          }
+          
+          console.log('=== 검색 결과 마커 숨김 완료 ===');
+          
+        } catch (error) {
+          console.error('hideAllSearchMarkers 오류:', error);
+        }
+      }
+
+
 
     </script>  </body>
 </html>

@@ -74,11 +74,6 @@ export const useRoute = (): UseRouteResult => {
       const endLng = params.endLocation.lng;
       const endAddress = params.endLocation.placeName;
 
-      console.log('길찾기 요청 시작:', {
-        startLng, startLat, endLng, endLat, 
-        transportMode: params.transportMode,
-        startAddress, endAddress
-      });
       
       // API 호출 (백엔드 GET 방식에 맞춤)
       const response = await getRoute(startLng, startLat, endLng, endLat, params.transportMode);
@@ -90,8 +85,6 @@ export const useRoute = (): UseRouteResult => {
           routeResult: response.data!,
           error: null,
         }));
-        
-        console.log('길찾기 성공:', response.data);
       } else {
         throw new Error(response.error?.message || '길찾기 결과를 받을 수 없습니다');
       }

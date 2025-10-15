@@ -7,7 +7,7 @@ const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => 
   };
 };
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback, forwardRef } from "react";
 import { View, StyleSheet, Platform, ViewStyle, Text, Modal, TouchableOpacity, Alert } from "react-native";
 import { WebView } from "react-native-webview";
 import { KAKAO_MAP_JS_KEY } from "@env";
@@ -15,12 +15,25 @@ import { useKakaoMapScript } from "../hooks/useKakaoMapScript";
 
 import { MarkerData, KakaoMapProps } from "../types/kakaoMap";
 import { SearchResult } from "../types/search";
-import { commonStyles } from "./KakaoMap.common.styles";
-import { webStyles } from "./KakaoMap.web.styles";
-import { mobileStyles } from "./KakaoMap.mobile.styles";
-import { MARKER_IMAGES } from "../constants/mapConstants";
+import { commonStyles as commonStyles } from "./KakaoMap.common.styles";
 
-  const WebKakaoMap = ({
+const styles = StyleSheet.create({
+  ...commonStyles,
+  webMapContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  webview: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+});
+import { MARKER_IMAGES, MARKER_CONFIG, getMarkerConfig, MAP_CONFIG } from "../constants/mapConstants";
+import { MarkerManager } from "../utils/markerUtils";
+
+  const WebKakaoMap = forwardRef<any, KakaoMapProps>(({
     latitude,
     longitude,
     markers,
@@ -33,8 +46,11 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     selectedMarkerLng,
     onCloseInfoWindow,
     onSetRouteLocation,
-  }: KakaoMapProps) => {
-    console.log('WebKakaoMap 렌더링:', { routeResult: !!routeResult, routeResultCoordinates: routeResult?.coordinates?.length });
+    resetMapLevel,
+    onResetMapLevelComplete,
+    onGetCurrentMapCenter,
+  }: KakaoMapProps, ref) => {
+    // WebKakaoMap 렌더링
     
     const { isLoaded, error: scriptError } = useKakaoMapScript();
     const mapRef = useRef<HTMLDivElement>(null);
@@ -48,17 +64,23 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
     const routeEndMarkerInstance = useRef<any>(null); // 도착지 마커 인스턴스
     const [isMapReady, setIsMapReady] = useState(false);
 
-    // Effect for initial map creation and idle listener
+    // Effect for initial map creation
     useEffect(() => {
       if (mapRef.current && isLoaded && !mapInstance.current) {
         const mapContainer = mapRef.current;
         const mapOption = {
           center: new window.kakao.maps.LatLng(latitude, longitude),
-          level: 3,
-          maxLevel: 14,
+          level: MAP_CONFIG.INITIAL_LEVEL,
+          maxLevel: MAP_CONFIG.MAX_LEVEL,
         };
         const map = new window.kakao.maps.Map(mapContainer, mapOption);
         mapInstance.current = map;
+
+        const debouncedOnMapCenterChange = debounce(() => {
+          const latlng = map.getCenter();
+        }, 300); // 300ms debounce
+
+        window.kakao.maps.event.addListener(map, "center_changed", debouncedOnMapCenterChange);
 
         clustererInstance.current = new window.kakao.maps.MarkerClusterer({
           map: map,
@@ -71,39 +93,127 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
       }
     }, [isLoaded, latitude, longitude]);
 
-    // Effect for idle listener
-    useEffect(() => {
-      const map = mapInstance.current;
-      if (!map || !onMapIdle) return;
-
-      const idleHandler = () => {
-        const latlng = map.getCenter();
-        onMapIdle(latlng.getLat(), latlng.getLng());
-      };
-
-      window.kakao.maps.event.addListener(map, 'idle', idleHandler);
-
-      return () => {
-        if (window.kakao && window.kakao.maps && window.kakao.maps.event) {
-          window.kakao.maps.event.removeListener(map, 'idle', idleHandler);
-        }
-      };
-    }, [onMapIdle]);
-
     // Effect for updating map center
     useEffect(() => {
       if (mapInstance.current && latitude !== undefined && longitude !== undefined) {
-        const map = mapInstance.current;
-        const currentCenter = map.getCenter();
         const newCenter = new window.kakao.maps.LatLng(latitude, longitude);
-
-        // Only move the map if the center has actually changed
-        if (currentCenter.getLat().toFixed(6) !== newCenter.getLat().toFixed(6) || 
-            currentCenter.getLng().toFixed(6) !== newCenter.getLng().toFixed(6)) {
-          map.setCenter(newCenter);
-        }
+        
+        // 지도 중심 이동 시작
+        
+        // 확실한 지도 이동을 위해 setCenter와 panTo 조합 사용
+        mapInstance.current.setCenter(newCenter);
+        
+        // 추가로 panTo도 호출하여 확실한 이동
+        setTimeout(() => {
+          mapInstance.current.panTo(newCenter);
+        }, 50);
+        
+        // 이동 후 중심 확인
+        setTimeout(() => {
+          const actualCenter = mapInstance.current.getCenter();
+          // 지도 중심 이동 완료
+        }, 100);
       }
     }, [latitude, longitude]);
+
+    // 지도 레벨 초기화 함수
+    const resetMapLevelFunction = useCallback(() => {
+      if (mapInstance.current) {
+        // 부드러운 레벨 조정을 위해 단계적으로 변경
+        const currentLevel = mapInstance.current.getLevel();
+        const targetLevel = MAP_CONFIG.CURRENT_LOCATION_LEVEL;
+        
+        if (currentLevel !== targetLevel) {
+          // 레벨 차이가 클 때는 단계적으로 조정
+          const step = currentLevel > targetLevel ? -1 : 1;
+          const adjustLevel = () => {
+            const newLevel = mapInstance.current.getLevel() + step;
+            mapInstance.current.setLevel(newLevel);
+            
+            if ((step > 0 && newLevel < targetLevel) || (step < 0 && newLevel > targetLevel)) {
+              setTimeout(adjustLevel, 100);
+            }
+          };
+          adjustLevel();
+        }
+        // 지도 레벨 초기화
+      }
+    }, []);
+
+    // 전역 함수로 등록 (다른 컴포넌트에서 호출 가능)
+    useEffect(() => {
+      (window as any).resetMapLevel = resetMapLevelFunction;
+      return () => {
+        delete (window as any).resetMapLevel;
+      };
+    }, [resetMapLevelFunction]);
+
+    // resetMapLevel prop 처리
+    useEffect(() => {
+      if (resetMapLevel && mapInstance.current) {
+        mapInstance.current.setLevel(MAP_CONFIG.CURRENT_LOCATION_LEVEL);
+        
+        // 지도 레벨 초기화 후 마커 다시 렌더링
+        setTimeout(() => {
+          // 마커 업데이트를 강제로 트리거
+          if (markers && markers.length > 0) {
+            
+            // 기존 마커들 제거
+            if (clustererInstance.current) {
+              clustererInstance.current.clear();
+            }
+            
+            // 사용자 위치 마커 다시 생성
+            const userLocationMarkerData = markers.find(m => m.markerType === 'userLocation');
+            if (userLocationMarkerData) {
+              const markerPosition = new window.kakao.maps.LatLng(
+                userLocationMarkerData.lat,
+                userLocationMarkerData.lng
+              );
+              const config = getMarkerConfig('userLocation');
+              const marker = new window.kakao.maps.Marker({
+                position: markerPosition,
+                image: createMarkerImage('userLocation'),
+                zIndex: config.zIndex
+              });
+              marker.setMap(mapInstance.current);
+              userLocationMarkerInstance.current = marker;
+              // 사용자 위치 마커 다시 생성 완료
+            }
+            
+            // 장소 마커들 다시 생성
+            const placeMarkersData = markers.filter(m => m.markerType !== 'userLocation');
+            if (placeMarkersData.length > 0) {
+              placeMarkersData.forEach(markerData => {
+                const markerPosition = new window.kakao.maps.LatLng(markerData.lat, markerData.lng);
+                const markerType = markerData.markerType === "selected" ? "selected" : "default";
+                const config = getMarkerConfig(markerType);
+                
+                const marker = new window.kakao.maps.Marker({
+                  position: markerPosition,
+                  image: createMarkerImage(markerType),
+                  zIndex: config.zIndex,
+                });
+                
+                clustererInstance.current.addMarker(marker);
+                
+                // 마커 클릭 이벤트 추가
+                window.kakao.maps.event.addListener(marker, 'click', () => {
+                  if (onMarkerPress) {
+                    onMarkerPress(markerData.placeId, markerData.lat, markerData.lng);
+                  }
+                });
+              });
+              // 장소 마커들 다시 생성 완료
+            }
+          }
+        }, 100);
+        
+        if (onResetMapLevelComplete) {
+          onResetMapLevelComplete();
+        }
+      }
+    }, [resetMapLevel, onResetMapLevelComplete, markers]);
 
     // Effect for updating markers
     useEffect(() => {
@@ -117,12 +227,12 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
           userLocationMarkerInstance.current.setMap(null);
         }
 
-        // 사용자 위치 마커에만 사용되는 마커 이미지 헬퍼 함수
-        const getUserLocationMarkerImage = () => {
-          const imageSrc = MARKER_IMAGES.USER_LOCATION;
-          const imageSize = new window.kakao.maps.Size(36, 36);
-          const imageOption = { offset: new window.kakao.maps.Point(18, 36) };
-          return new window.kakao.maps.MarkerImage(imageSrc, imageSize, imageOption);
+        // 마커 타입에 따른 이미지 생성 헬퍼 함수
+        const createMarkerImage = (markerType: string) => {
+          const config = getMarkerConfig(markerType as any);
+          const imageSize = new window.kakao.maps.Size(config.size.width, config.size.height);
+          const imageOption = { offset: new window.kakao.maps.Point(config.offset.x, config.offset.y) };
+          return new window.kakao.maps.MarkerImage(config.image, imageSize, imageOption);
         };
 
         // 점 마커 이미지용 작은 SVG를 데이터 URI로 생성
@@ -142,19 +252,22 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
         const userLocationMarkerData = markers?.find(m => m.markerType === 'userLocation');
         const placeMarkersData = markers?.filter(m => m.markerType !== 'userLocation');
 
+
         // Handle user location marker
         if (userLocationMarkerData) {
           const markerPosition = new window.kakao.maps.LatLng(
             userLocationMarkerData.lat,
             userLocationMarkerData.lng
           );
+          const config = getMarkerConfig('userLocation');
           const marker = new window.kakao.maps.Marker({
             position: markerPosition,
-            image: getUserLocationMarkerImage(),
-            zIndex: 101 // 최상단에 표시되도록 보장
+            image: createMarkerImage('userLocation'),
+            zIndex: config.zIndex
           });
           marker.setMap(mapInstance.current);
           userLocationMarkerInstance.current = marker; // 인스턴스 저장
+          // 사용자 위치 마커 생성 완료
         }
 
         // Handle place markers with clusterer
@@ -167,14 +280,13 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               markerData.lng
             );
 
-            const markerImageSrc = createDotMarkerImage(markerData.markerType === "selected");
-            const imageSize = new window.kakao.maps.Size(markerData.markerType === "selected" ? 16 : 12, markerData.markerType === "selected" ? 16 : 12);
-            const imageOption = { offset: new window.kakao.maps.Point(imageSize.width / 2, imageSize.height / 2) }; // 점의 중앙에 오도록 오프셋 설정
-
+            const markerType = markerData.markerType === "selected" ? "selected" : "default";
+            const config = getMarkerConfig(markerType);
+            
             const marker = new window.kakao.maps.Marker({
               position: markerPosition,
-              image: new window.kakao.maps.MarkerImage(markerImageSrc, imageSize, imageOption),
-              zIndex: markerData.markerType === "selected" ? 100 : 1,
+              image: createMarkerImage(markerType),
+              zIndex: config.zIndex,
             });
 
             const customOverlayContent = `
@@ -253,14 +365,6 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
     // InfoWindow CustomOverlay 관리
     useEffect(() => {
-      console.log('InfoWindow useEffect triggered:', {
-        mapInstance: !!mapInstance.current,
-        showInfoWindow,
-        selectedPlaceId,
-        selectedMarkerLat,
-        selectedMarkerLng,
-        markersCount: markers?.length
-      });
 
       if (mapInstance.current && showInfoWindow && selectedPlaceId && selectedMarkerLat && selectedMarkerLng) {
         // 기존 InfoWindow 제거
@@ -270,10 +374,8 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
         // 선택된 마커 데이터 찾기
         const selectedMarker = markers?.find(marker => marker.placeId === selectedPlaceId);
-        console.log('Selected marker found:', selectedMarker);
         
         if (!selectedMarker) {
-          console.log('No selected marker found for placeId:', selectedPlaceId);
           return;
         }
 
@@ -430,8 +532,6 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
         // 드롭다운 옵션 선택 함수
         (window as any).selectRouteOption = (option: 'departure' | 'arrival') => {
-          console.log('Route option selected:', option, 'for place:', selectedPlaceId);
-          console.log('Selected marker:', selectedMarker);
           
           // 선택된 장소 정보를 SearchResult 형태로 변환
           if (selectedMarker) {
@@ -439,7 +539,6 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               placeId: selectedMarker.placeId,
               placeName: selectedMarker.placeName,
               roadAddress: selectedMarker.roadAddress || '',
-              roadAddressDong: selectedMarker.roadAddressDong || '',
               lotAddress: selectedMarker.lotAddress || '',
               lat: selectedMarker.lat,
               lng: selectedMarker.lng,
@@ -449,14 +548,11 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               distance: 0, // InfoWindow에서는 거리 정보가 없으므로 0으로 설정
             };
             
-            console.log('Place info created:', placeInfo);
             
             // 전역 함수 호출 (SideMenu에서 등록한 함수) - InfoWindow 닫기 전에 호출
             if ((window as any).setRouteLocationFromInfoWindow) {
-              console.log('전역 함수 호출 중...');
               (window as any).setRouteLocationFromInfoWindow(option, placeInfo);
             } else {
-              console.log('전역 함수가 등록되지 않음!');
             }
             
             // 드롭다운 닫기
@@ -472,7 +568,6 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               }
             }, 100); // 100ms 지연으로 전역 함수 실행 완료 후 닫기
           } else {
-            console.log('Selected marker가 없음!');
             
             // 드롭다운 닫기
             const dropdown = document.getElementById('routeDropdown');
@@ -520,12 +615,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
     // 경로 표시 Effect
     useEffect(() => {
-      console.log('웹 경로 표시 useEffect 실행:', {
-        isMapReady,
-        hasMapInstance: !!mapInstance.current,
-        hasRouteResult: !!routeResult,
-        routeResultCoordinates: routeResult?.coordinates?.length || 0
-      });
+      // 웹 경로 표시 useEffect 실행
       
       if (isMapReady && mapInstance.current) {
         // 기존 경로 요소들 제거
@@ -544,16 +634,14 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
         // 새로운 경로 표시
         if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
-          console.log('웹 경로 표시 시작:', routeResult);
-          console.log('window.kakao 객체 존재:', !!window.kakao);
-          console.log('mapInstance.current 존재:', !!mapInstance.current);
+          // 웹 경로 표시 시작
           
           try {
             const path = routeResult.coordinates.map(coord => 
               new window.kakao.maps.LatLng(coord.lat, coord.lon)
             );
             
-            console.log('경로 좌표 개수:', path.length);
+            // 경로 좌표 처리
             
             const polyline = new window.kakao.maps.Polyline({
               map: mapInstance.current,
@@ -565,7 +653,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               zIndex: 50
             });
             routePolylineInstance.current = polyline;
-            console.log('웹 경로 라인 생성 완료');
+            // 웹 경로 라인 생성 완료
           } catch (error) {
             console.error('웹 경로 라인 생성 오류:', error);
           }
@@ -586,7 +674,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               });
               startMarker.setMap(mapInstance.current);
               routeStartMarkerInstance.current = startMarker;
-              console.log('웹 출발지 마커 생성 완료');
+              // 웹 출발지 마커 생성 완료
             }
 
             // 3. 도착지 마커 표시
@@ -604,7 +692,7 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
               });
               endMarker.setMap(mapInstance.current);
               routeEndMarkerInstance.current = endMarker;
-              console.log('웹 도착지 마커 생성 완료');
+              // 웹 도착지 마커 생성 완료
             }
 
             // 4. 경로 전체가 보이도록 지도 범위 조정
@@ -614,9 +702,9 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
             const bounds = new window.kakao.maps.LatLngBounds();
             path.forEach(point => bounds.extend(point));
             mapInstance.current.setBounds(bounds);
-            console.log('웹 지도 범위 조정 완료');
+            // 웹 지도 범위 조정 완료
             
-            console.log('웹 경로 표시 완료');
+            // 웹 경로 표시 완료
           } catch (error) {
             console.error('웹 마커 생성 오류:', error);
           }
@@ -624,38 +712,23 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
       }
     }, [isMapReady, routeResult]);
 
-    // 경로 마커 이미지 생성 함수
+    // 마커 타입에 따른 이미지 생성 헬퍼 함수
+    const createMarkerImage = (markerType: string) => {
+      const config = getMarkerConfig(markerType as any);
+      const imageSize = new window.kakao.maps.Size(config.size.width, config.size.height);
+      const imageOption = { offset: new window.kakao.maps.Point(config.offset.x, config.offset.y) };
+      return new window.kakao.maps.MarkerImage(config.image, imageSize, imageOption);
+    };
+
+    // 경로 마커 이미지 생성 함수 (새로운 설정 사용)
     const createRouteMarkerImage = (type: 'start' | 'end') => {
-      const size = new window.kakao.maps.Size(32, 32);
-      const offset = new window.kakao.maps.Point(16, 32);
-      
-      let imageSrc;
-      if (type === 'start') {
-        // 출발지 마커 (녹색 원)
-        const svg = `
-          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="14" fill="#28a745" stroke="#fff" stroke-width="2"/>
-            <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">S</text>
-          </svg>
-        `;
-        imageSrc = `data:image/svg+xml;base64,${btoa(svg)}`;
-      } else {
-        // 도착지 마커 (빨간색 원)
-        const svg = `
-          <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="16" cy="16" r="14" fill="#dc3545" stroke="#fff" stroke-width="2"/>
-            <text x="16" y="20" text-anchor="middle" fill="#fff" font-size="16" font-weight="bold">E</text>
-          </svg>
-        `;
-        imageSrc = `data:image/svg+xml;base64,${btoa(svg)}`;
-      }
-      
-      return new window.kakao.maps.MarkerImage(imageSrc, size, { offset });
+      const markerType = type === 'start' ? 'routeStart' : 'routeEnd';
+      return createMarkerImage(markerType);
     };
 
   if (scriptError) {
     return (
-      <View style={webStyles.webMapContainer}>
+      <View style={styles.webMapContainer}>
         <Text>Error loading Kakao Map: {scriptError.toString()}</Text>
       </View>
     );
@@ -663,19 +736,19 @@ import { MARKER_IMAGES } from "../constants/mapConstants";
 
   if (!isLoaded) {
     return (
-      <View style={webStyles.webMapContainer}>
+      <View style={styles.webMapContainer}>
         <Text>Loading Kakao Map...</Text>
       </View>
     );
   }
 
-  return <div ref={mapRef} style={webStyles.webMapContainer} />;
-};
+  return <div ref={mapRef} style={styles.webMapContainer} />;
+});
 
 import { kakaoMapWebViewHtml } from "./kakaoMapWebViewSource";
 
 // 모바일 전용 카카오 맵 렌더링 로직 (WebView 사용)
-const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
+const MobileKakaoMap = React.memo(forwardRef<any, KakaoMapProps>(({
   latitude,
   longitude,
   markers,
@@ -683,8 +756,17 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
   onMapIdle,
   onMarkerPress,
   style,
-}) => {
+  resetMapLevel,
+  onResetMapLevelComplete,
+  onGetCurrentMapCenter,
+}, ref) => {
   const webViewRef = useRef<WebView>(null);
+  
+  // ref를 webViewRef에 연결하고 onGetCurrentMapCenter 콜백도 노출
+  React.useImperativeHandle(ref, () => ({
+    ...webViewRef.current,
+    getCurrentMapCenter: onGetCurrentMapCenter
+  }));
   const updateTimeout = useRef<NodeJS.Timeout | null>(null);
   const [isMapApiReady, setIsMapApiReady] = useState(false);
   const [isMapInitialized, setIsMapInitialized] = useState(false);
@@ -707,12 +789,21 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
       htmlContent &&
       isMapInitialized &&
       latitude !== undefined &&
-      longitude !== undefined
+      longitude !== undefined &&
+      !isNaN(latitude) &&
+      !isNaN(longitude)
     ) {
-      const script = `updateMapCenter(${latitude}, ${longitude}); true;`;
+      const script = `
+        updateMapCenter(${latitude}, ${longitude});
+        true;
+      `;
+      
+      (webViewRef.current as any).latitude = latitude;
+      (webViewRef.current as any).longitude = longitude;
+      
       webViewRef.current.injectJavaScript(script);
     }
-  }, [isMapInitialized, latitude, longitude, htmlContent]);
+  }, [isMapInitialized, latitude, longitude]);
 
   // Effect for updating markers when markers prop changes (Debounced)
   useEffect(() => {
@@ -732,7 +823,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         clearTimeout(updateTimeout.current);
       }
     };
-  }, [markers, htmlContent, isMapInitialized]);
+  }, [markers, isMapInitialized]);
 
   // 경로 표시 Effect (모바일 WebView)
   useEffect(() => {
@@ -743,14 +834,12 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
     updateTimeout.current = setTimeout(() => {
       if (webViewRef.current && htmlContent && isMapInitialized) {
         if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
-          console.log('모바일 경로 표시 시작:', routeResult);
           
           // 경로 표시 스크립트
           const script = `
             if (typeof drawRoute === 'function') {
               drawRoute(${JSON.stringify(routeResult)});
             } else {
-              console.log('drawRoute 함수가 아직 로드되지 않음');
             }
             true;
           `;
@@ -773,11 +862,36 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         clearTimeout(updateTimeout.current);
       }
     };
-  }, [routeResult, htmlContent, isMapInitialized]);
+  }, [routeResult, isMapInitialized]);
+
+  // resetMapLevel prop 처리 (모바일 WebView)
+  useEffect(() => {
+    if (resetMapLevel && webViewRef.current && isMapInitialized) {
+      const script = `
+        if (typeof map !== 'undefined' && map) {
+          map.setLevel(${MAP_CONFIG.CURRENT_LOCATION_LEVEL});
+          
+          // 지도 레벨 초기화 후 마커 다시 렌더링
+          setTimeout(() => {
+            if (typeof updateMarkers === 'function') {
+              updateMarkers(${JSON.stringify(markers || [])});
+            }
+          }, 100);
+        }
+        true;
+      `;
+      
+      webViewRef.current.injectJavaScript(script);
+      
+      if (onResetMapLevelComplete) {
+        onResetMapLevelComplete();
+      }
+    }
+  }, [resetMapLevel, isMapInitialized, onResetMapLevelComplete, markers]);
 
   if (!htmlContent) {
     return (
-      <View style={mobileStyles.webview}>
+      <View style={styles.webview}>
         <Text>Loading map content...</Text>
       </View>
     );
@@ -789,7 +903,7 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         ref={webViewRef} // WebView에 ref 할당
         originWhitelist={["*"]}
         source={{ html: htmlContent }}
-        style={[mobileStyles.webview, style]}
+        style={[styles.webview, style]}
         javaScriptEnabled={true}
         domStorageEnabled={true}
         onLoadEnd={() => {
@@ -814,8 +928,10 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         onMessage={(event) => { // WebView 메시지 처리
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            if (data.type === "map_idle" && onMapIdle) {
-              onMapIdle(data.latitude, data.longitude);
+            if (data.type === "map_idle") {
+              if (onMapIdle) {
+                onMapIdle(data.latitude, data.longitude);
+              }
             }
             if (data.type === "marker_press" && onMarkerPress) {
               onMarkerPress(data.id);
@@ -824,9 +940,22 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
               setIsMapApiReady(true);
               setIsMapInitialized(true); // initMap 성공 후 초기화 완료로 설정
             }
+            if (data.type === 'get_current_map_center_for_search') {
+              console.log('=== WebView에서 메시지 수신 ===');
+              console.log('받은 지도 중심:', data.latitude, data.longitude);
+              // 현재 지도 중심을 가져와서 검색 함수에 전달
+              if ((global as any).handleSearchInAreaWithCurrentCenter) {
+                console.log('전역 함수 호출 시도');
+                (global as any).handleSearchInAreaWithCurrentCenter({
+                  latitude: data.latitude,
+                  longitude: data.longitude
+                });
+              } else {
+                console.log('전역 함수가 존재하지 않음');
+              }
+            }
             if (data.type === 'route_selected') {
               // 길찾기 버튼 클릭 시 처리
-              console.log('Route selected:', data.placeId, data.placeName);
               
               // 전역 함수가 등록되어 있으면 호출
               if ((global as any).setRouteLocationFromInfoWindow) {
@@ -834,14 +963,14 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                   placeId: data.placeId,
                   placeName: data.placeName,
                   roadAddress: data.roadAddress || '',
-                  roadAddressDong: data.roadAddressDong || '', // Add missing property
                   lotAddress: data.lotAddress || '',
                   lat: data.latitude || 0,
                   lng: data.longitude || 0,
                   phone: data.phone || '',
                   categoryGroupName: data.category || '',
                   placeUrl: data.placeUrl || '',
-                  distance: data.distance || 0
+                  distance: data.distance || 0,
+                  roadAddressDong: ""
                 };
                 
                 // 출발/도착 드롭다운 메뉴 표시
@@ -866,17 +995,17 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
         animationType="fade"
         onRequestClose={() => setShowRouteMenu(false)}
       >
-        <View style={commonStyles.modalOverlay}>
-          <View style={commonStyles.routeMenuContainer}>
-            <Text style={commonStyles.routeMenuTitle}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.routeMenuContainer}>
+            <Text style={styles.routeMenuTitle}>
               {selectedPlaceInfo?.placeName}
             </Text>
-            <Text style={commonStyles.routeMenuSubtitle}>
+            <Text style={styles.routeMenuSubtitle}>
               길찾기 옵션을 선택하세요
             </Text>
             
             <TouchableOpacity
-              style={commonStyles.routeMenuButton}
+              style={styles.routeMenuButton}
               onPress={() => {
                 if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
                   (global as any).setRouteLocationFromInfoWindow('departure', selectedPlaceInfo);
@@ -884,11 +1013,11 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                 }
               }}
             >
-              <Text style={commonStyles.routeMenuButtonText}>출발지로 설정</Text>
+              <Text style={styles.routeMenuButtonText}>출발지로 설정</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={commonStyles.routeMenuButton}
+              style={styles.routeMenuButton}
               onPress={() => {
                 if (selectedPlaceInfo && (global as any).setRouteLocationFromInfoWindow) {
                   (global as any).setRouteLocationFromInfoWindow('arrival', selectedPlaceInfo);
@@ -896,33 +1025,28 @@ const MobileKakaoMap: React.FC<KakaoMapProps> = React.memo(({
                 }
               }}
             >
-              <Text style={commonStyles.routeMenuButtonText}>도착지로 설정</Text>
+              <Text style={styles.routeMenuButtonText}>도착지로 설정</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={commonStyles.routeMenuCancelButton}
+              style={styles.routeMenuCancelButton}
               onPress={() => setShowRouteMenu(false)}
             >
-              <Text style={commonStyles.routeMenuCancelButtonText}>취소</Text>
+              <Text style={styles.routeMenuCancelButtonText}>취소</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </View>
   );
-});
+}));
 
-const KakaoMap: React.FC<KakaoMapProps> = (props) => {
-  console.log('KakaoMap 컴포넌트 렌더링:', { 
-    platform: Platform.OS, 
-    hasRouteResult: !!props.routeResult,
-    routeResultCoordinates: props.routeResult?.coordinates?.length 
-  });
+const KakaoMap = forwardRef<any, KakaoMapProps>((props, ref) => {
   
   if (Platform.OS === "web") {
-    return <WebKakaoMap {...props} />;
+    return <WebKakaoMap {...props} ref={ref} />;
   }
-  return <MobileKakaoMap {...props} />;
-};
+  return <MobileKakaoMap {...props} ref={ref} />;
+});
 
 export default KakaoMap;

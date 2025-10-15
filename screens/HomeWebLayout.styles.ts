@@ -1,10 +1,12 @@
 import { StyleSheet } from "react-native";
+import { COLORS } from "../constants/colors";
+import { SIZES } from "../constants/sizes";
 
 // 웹용 스타일 정의
 export const webStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
   },
   mainContainer: {
     flex: 1,
@@ -20,9 +22,9 @@ export const webStyles = StyleSheet.create({
     alignItems: 'center',
   },
   errorContainer: {
-    backgroundColor: '#ff385c',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    backgroundColor: COLORS.red,
+    paddingVertical: SIZES.spacing.sm,
+    paddingHorizontal: SIZES.spacing.base,
     position: 'absolute',
     top: 0,
     left: 0,
@@ -37,10 +39,10 @@ export const webStyles = StyleSheet.create({
   },
   currentLocationButton: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
-    backgroundColor: '#fff',
-    borderRadius: 25,
+    bottom: SIZES.spacing.lg,
+    right: SIZES.spacing.lg,
+    backgroundColor: COLORS.white,
+    borderRadius: SIZES.borderRadius.full,
     width: 50,
     height: 50,
     justifyContent: 'center',
@@ -58,16 +60,16 @@ export const webStyles = StyleSheet.create({
   },
   searchInAreaButton: {
     position: 'absolute',
-    bottom: 20,
+    bottom: SIZES.spacing.lg,
     alignSelf: 'center',
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: COLORS.blue,
+    paddingHorizontal: SIZES.spacing.lg,
+    paddingVertical: SIZES.spacing.sm,
+    borderRadius: SIZES.borderRadius.xxl,
     zIndex: 999,
   },
   searchInAreaButtonText: {
-    color: 'white',
+    color: COLORS.white,
     fontWeight: 'bold',
   },
 });

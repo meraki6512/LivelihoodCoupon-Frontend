@@ -35,4 +35,7 @@ export type KakaoMapProps = {
   selectedMarkerLng?: number; // 선택된 마커의 경도
   onCloseInfoWindow?: () => void; // InfoWindow 닫기 콜백
   onSetRouteLocation?: (type: 'departure' | 'arrival', placeInfo: any) => void; // 길찾기 위치 설정 콜백
+  resetMapLevel?: boolean; // 지도 레벨 초기화 트리거
+  onResetMapLevelComplete?: () => void; // 지도 레벨 초기화 완료 콜백
+  onGetCurrentMapCenter?: () => void; // 현재 지도 중심 가져오기 콜백
 };

@@ -42,4 +42,9 @@ export const commonStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  errorText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
 });

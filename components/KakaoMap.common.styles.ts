@@ -61,4 +61,14 @@ export const commonStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  webMapContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  webview: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
 });

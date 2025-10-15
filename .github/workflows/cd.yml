@@ -1,0 +1,87 @@
+name: Frontend CD (App)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Node.js 설치
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # 3. 의존성 설치 & 빌드
+      - name: Install dependencies and build
+        run: |
+          npm ci --legacy-peer-deps
+          npm install @expo/webpack-config@^18.0.0 react-dom react-native-web --legacy-peer-deps   
+          # 빌드 전 env 주입
+          export KAKAO_MAP_JS_KEY=${{ secrets.KAKAO_MAP_JS_KEY }}
+          export KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+          export API_BASE_URL=${{ secrets.API_BASE_URL }}
+          export EXPO_PUBLIC_USE_HARDCODED_LOCATION=${{ secrets.EXPO_PUBLIC_USE_HARDCODED_LOCATION }}
+          export EXPO_PUBLIC_HARDCODED_LATITUDE=${{ secrets.EXPO_PUBLIC_HARDCODED_LATITUDE }}
+          export EXPO_PUBLIC_HARDCODED_LONGITUDE=${{ secrets.EXPO_PUBLIC_HARDCODED_LONGITUDE }}
+          
+          npm run web-build          
+
+      #- name: Build Web
+      #  run: npm run web-build
+
+      # 4. EC2에 빌드 결과 전송
+      - name: Copy build folder to EC2
+        uses: appleboy/scp-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: ./
+          target: ~/frontend/
+          overwrite: true
+
+      # 5. EC2에서 npm start 실행
+      - name: Run frontend on EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/frontend
+
+            npm install
+
+            # pm2 설치 (한 번만 설치해도 됨)
+            sudo npm install -g pm2 serve expo-cli        
+
+            # 기존 프로세스 종료
+            pm2 delete frontend || true
+            pm2 delete expo || true
+
+            # React 빌드 서비스 (8081 포트)
+            pm2 start "serve -s ./web-build -l 8081" --name frontend
+
+            # Expo 개발 서버 실행
+            pm2 start "expo start --non-interactive --tunnel" --name expo
+
+            # pm2 프로세스 저장, EC2 재부팅 시 자동 시작
+            pm2 save
+            pm2 startup systemd -u $USER --hp $HOME
+
+            echo "✅ Frontend started successfully with pm2!"

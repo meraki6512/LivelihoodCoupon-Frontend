@@ -30,7 +30,9 @@ jobs:
       - name: Install dependencies and build
         run: |
           npm ci --legacy-peer-deps
+          
           #npm install @expo/webpack-config@^18.0.0 react-dom react-native-web --legacy-peer-deps   
+
           # 빌드 전 env 주입
           export KAKAO_MAP_JS_KEY=${{ secrets.KAKAO_MAP_JS_KEY }}
           export KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
@@ -80,7 +82,7 @@ jobs:
             pm2 start "serve -s ./web-build -l 8081" --name frontend
 
             # Expo 개발 서버 실행
-            pm2 start "expo start --non-interactive --tunnel" --name expo
+            #pm2 start "expo start --non-interactive --tunnel" --name expo
 
             # pm2 프로세스 저장, EC2 재부팅 시 자동 시작
             pm2 save

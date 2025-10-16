@@ -362,6 +362,11 @@ export default function Home() {
     return activeTab === 'route' ? routeResult : null;
   }, [activeTab, routeResult]);
 
+  const handleCategorySearch = useCallback((categoryName: string) => {
+    setSearchQuery(categoryName);
+    handleSearch(categoryName);
+  }, [setSearchQuery, handleSearch]);
+
   if (Platform.OS === 'web') {
     return (
       <HomeWebLayout
@@ -392,6 +397,7 @@ export default function Home() {
         onMarkerPress={handleMarkerPress}
         searchOptions={searchOptions}
         setSearchOptions={setSearchOptions}
+        onCategorySearch={handleCategorySearch}
         loadingNextPage={loadingNextPage}
         loadingAllMarkers={loadingAllMarkers}
         markerCountReachedLimit={markerCountReachedLimit}

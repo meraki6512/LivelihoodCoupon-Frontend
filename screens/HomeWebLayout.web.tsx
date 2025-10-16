@@ -18,6 +18,8 @@ import { webStyles } from "./HomeWebLayout.styles";
 import RecentlyViewedPlaces from "../components/RecentlyViewedPlaces";
 import { MarkerData } from '../types/kakaoMap';
 
+import CategorySearchWeb from "../components/search/CategorySearch.web";
+
 const SIDE_MENU_WIDTH = 330; // Define the side menu width
 
 interface HomeWebLayoutProps {
@@ -48,6 +50,7 @@ interface HomeWebLayoutProps {
   onMarkerPress: (placeId: string, lat?: number, lng?: number) => void;
   searchOptions: SearchOptions;
   setSearchOptions: (options: Partial<SearchOptions>) => void;
+  onCategorySearch: (categoryName: string) => void;
   loadingNextPage: boolean;
   loadingAllMarkers: boolean;
   markerCountReachedLimit: boolean;
@@ -169,82 +172,86 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   endLocationObject,
   setEndLocationObject,
   setTemporarySelectedMarker,
-  onRecentlyViewedPlaceClick,
+  onCategorySearch,
   onMapReady,
 }) => {
-  const [showRecentlyViewed, setShowRecentlyViewed] = useState(false);
-  const recentlyViewedButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
-
-  const searchButtonTranslateX = isMenuOpen ? SIDE_MENU_WIDTH / 2 : 0;
-
-  return (
-    <View style={webStyles.container}>
-      {errorMsg && (
-        <View style={webStyles.errorContainer}>
-          <Text style={webStyles.errorText}>{errorMsg}</Text>
-        </View>
-      )}
-      <View style={webStyles.mainContainer}>
-        <SideMenu
-          isOpen={isMenuOpen}
-          searchResults={searchResults}
-          allMarkers={allMarkers}
-          onSelectResult={onSelectResult}
-          isLoading={isLoading}
-          errorMsg={errorMsg}
-          onToggle={() => setIsMenuOpen(!isMenuOpen)}
-          style={{ transform: [{ translateX: sideMenuAnimation }] }}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSearch={onSearch}
-          onClearSearch={onClearSearch}
-          searchOptions={searchOptions}
-          setSearchOptions={setSearchOptions}
-          loadingNextPage={loadingNextPage}
-          loadingAllMarkers={loadingAllMarkers}
-          markerCountReachedLimit={markerCountReachedLimit}
-          onNextPage={onNextPage}
-          pagination={pagination}
-          onSetRouteLocation={onSetRouteLocation}
-          onOpenSidebar={onOpenSidebar}
-          routeResult={routeResult}
-          isRouteLoading={isRouteLoading}
-          routeError={routeError}
-          startRoute={startRoute}
-          clearRoute={clearRoute}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          // New props from useSharedSearch
-          startLocation={startLocation}
-          setStartLocation={setStartLocation}
-          endLocation={endLocation}
-          setEndLocation={setEndLocation}
-          startLocationResults={startLocationResults}
-          endLocationResults={endLocationResults}
-          isSearchingStart={isSearchingStart}
-          isSearchingEnd={isSearchingEnd}
-          showStartResults={showStartResults}
-          setShowStartResults={setShowStartResults}
-          showEndResults={showEndResults}
-          setShowEndResults={setShowEndResults}
-          selectedTransportMode={selectedTransportMode}
-          setSelectedTransportMode={setSelectedTransportMode}
-          autocompleteSuggestions={autocompleteSuggestions}
-          showAutocomplete={showAutocomplete}
-          setShowAutocomplete={setShowAutocomplete}
-          debouncedAutocomplete={debouncedAutocomplete}
-          debouncedSearchStartLocation={debouncedSearchStartLocation}
-          debouncedSearchEndLocation={debouncedSearchEndLocation}
-          handleTextEdit={handleTextEdit}
-          searchLocation={searchLocation}
-          location={sharedSearchLocationFromHook}
-          startLocationObject={startLocationObject}
-          setStartLocationObject={setStartLocationObject}
-          endLocationObject={endLocationObject}
-          setEndLocationObject={setEndLocationObject}
-        />
-        <View style={webStyles.mapContainer}>
-          {mapCenter ? (
+    const [showRecentlyViewed, setShowRecentlyViewed] = useState(false);
+    const recentlyViewedButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
+  
+    const searchButtonTranslateX = isMenuOpen ? SIDE_MENU_WIDTH / 2 : 0;
+  
+    return (
+      <View style={webStyles.container}>
+        {errorMsg && (
+          <View style={webStyles.errorContainer}>
+            <Text style={webStyles.errorText}>{errorMsg}</Text>
+          </View>
+        )}
+        <View style={webStyles.mainContainer}>
+          <Animated.View style={[{ zIndex: 1001, transform: [{ translateX: sideMenuAnimation }] }]}>
+            <SideMenu
+              isOpen={isMenuOpen}
+              searchResults={searchResults}
+              allMarkers={allMarkers}
+              onSelectResult={onSelectResult}
+              isLoading={isLoading}
+              errorMsg={errorMsg}
+              onToggle={() => setIsMenuOpen(!isMenuOpen)}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={onSearch}
+              onClearSearch={onClearSearch}
+              searchOptions={searchOptions}
+              setSearchOptions={setSearchOptions}
+              loadingNextPage={loadingNextPage}
+              loadingAllMarkers={loadingAllMarkers}
+              markerCountReachedLimit={markerCountReachedLimit}
+              onNextPage={onNextPage}
+              pagination={pagination}
+              onSetRouteLocation={onSetRouteLocation}
+              onOpenSidebar={onOpenSidebar}
+              routeResult={routeResult}
+              isRouteLoading={isRouteLoading}
+              routeError={routeError}
+              startRoute={startRoute}
+              clearRoute={clearRoute}
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              startLocation={startLocation}
+              setStartLocation={setStartLocation}
+              endLocation={endLocation}
+              setEndLocation={setEndLocation}
+              startLocationResults={startLocationResults}
+              endLocationResults={endLocationResults}
+              isSearchingStart={isSearchingStart}
+              isSearchingEnd={isSearchingEnd}
+              showStartResults={showStartResults}
+              setShowStartResults={setShowStartResults}
+              showEndResults={showEndResults}
+              setShowEndResults={setShowEndResults}
+              selectedTransportMode={selectedTransportMode}
+              setSelectedTransportMode={setSelectedTransportMode}
+              autocompleteSuggestions={autocompleteSuggestions}
+              showAutocomplete={showAutocomplete}
+              setShowAutocomplete={setShowAutocomplete}
+              debouncedAutocomplete={debouncedAutocomplete}
+              debouncedSearchStartLocation={debouncedSearchStartLocation}
+              debouncedSearchEndLocation={debouncedSearchEndLocation}
+              handleTextEdit={handleTextEdit}
+              searchLocation={searchLocation}
+              location={sharedSearchLocationFromHook}
+              startLocationObject={startLocationObject}
+              setStartLocationObject={setStartLocationObject}
+              endLocationObject={endLocationObject}
+              setEndLocationObject={setEndLocationObject}
+            />
+          </Animated.View>
+          <Animated.View style={[webStyles.categorySearchContainer, { transform: [{ translateX: sideMenuAnimation }] }]}>
+            <CategorySearchWeb 
+              onCategoryClick={onCategorySearch}
+            />
+          </Animated.View>
+          <View style={webStyles.mapContainer}>          {mapCenter ? (
             <>
               <KakaoMap
                 ref={mapRef}

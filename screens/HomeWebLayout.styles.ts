@@ -12,6 +12,14 @@ export const webStyles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
+  categorySearchContainer: {
+    position: 'absolute',
+    top: 6,
+    left: 330, // SideMenu width
+    padding: 20,
+    backgroundColor: 'transparent',
+    zIndex: 1000,
+  },
   mapContainer: {
     flex: 1,
     height: '100%',

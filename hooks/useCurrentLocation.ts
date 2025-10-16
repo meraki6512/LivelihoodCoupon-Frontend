@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as Location from "expo-location";
+import { EXPO_PUBLIC_USE_HARDCODED_LOCATION, EXPO_PUBLIC_HARDCODED_LATITUDE, EXPO_PUBLIC_HARDCODED_LONGITUDE } from '@env';
 
 /**
  * 위치 정보 상태 인터페이스
@@ -35,6 +36,20 @@ export const useCurrentLocation = (): UseCurrentLocationResult => {
             const getLocation = async () => {
               setLoading(true);
               setError(null); // 에러 초기화
+
+              // EXPO_PUBLIC_USE_HARDCODED_LOCATION이 true인 경우 하드코딩된 위치 사용
+              if (EXPO_PUBLIC_USE_HARDCODED_LOCATION === "true") {
+                const hardcodedLatitude = parseFloat(EXPO_PUBLIC_HARDCODED_LATITUDE);
+                const hardcodedLongitude = parseFloat(EXPO_PUBLIC_HARDCODED_LONGITUDE);
+
+                if (!isNaN(hardcodedLatitude) && !isNaN(hardcodedLongitude)) {
+                  setLocation({ latitude: hardcodedLatitude, longitude: hardcodedLongitude });
+                  setLoading(false);
+                  return;
+                } else {
+                  console.warn("Hardcoded location environment variables are not valid numbers.");
+                }
+              }
               
               try {
                 let { status } = await Location.requestForegroundPermissionsAsync();

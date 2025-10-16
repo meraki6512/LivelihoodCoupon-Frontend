@@ -7,6 +7,7 @@ import {
 import { usePlaceStore } from "../store/placeStore";
 import { useCurrentLocation } from "../hooks/useCurrentLocation";
 import { useSearch } from "../hooks/useSearch";
+import { useParkingLotSearch } from '../hooks/useParkingLotSearch';
 import { useRoute } from "../hooks/useRoute";
 import { useSharedSearch } from "../hooks/useSharedSearch"; // Import useSharedSearch
 import HomeWebLayout from "./HomeWebLayout";
@@ -128,6 +129,8 @@ export default function Home() {
     setStartLocationObject,
     endLocationObject,
     setEndLocationObject,
+    activeSearchTab,
+    setActiveSearchTab,
   } = useSharedSearch(
     routeResult,
     isRouteLoading,
@@ -136,6 +139,13 @@ export default function Home() {
     clearRoute,
     onToggleSidebarCallback
   );
+
+  const {
+    parkingLots,
+    loading: parkingLotsLoading,
+    error: parkingLotsError,
+    fetchParkingLots,
+  } = useParkingLotSearch();
 
   const [showSearchInAreaButton, setShowSearchInAreaButton] = useState(false);
   const [temporarySelectedMarker, setTemporarySelectedMarker] = useState<MarkerData | null>(null);
@@ -146,6 +156,17 @@ export default function Home() {
     setMapCenterState(center);
     setMapCenterToStore(center);
   }, [setMapCenterToStore]);
+
+  useEffect(() => {
+    if (activeSearchTab === 'nearbyParking' && searchCenter && location) {
+      fetchParkingLots(searchCenter.lat, searchCenter.lng, {
+        radius: 5, // 주차장 검색 시 반경 5km로 고정
+        page: 1, // Start from page 1 for a new search
+        sort: 'distance', // Default sort by distance
+      });
+    }
+  }, [activeSearchTab, searchCenter, location, fetchParkingLots]);
+
 
   const clearSearchResults = useCallback(() => {
     setSearchQuery("");
@@ -229,6 +250,7 @@ export default function Home() {
   const handleSearch = useCallback(async (query?: string) => {
     Keyboard.dismiss();
     setShowSearchInAreaButton(false);
+    setActiveSearchTab('searchResults'); // 검색 시 항상 검색 결과 탭으로 초기화
     if (!mapCenter) {
       alert("지도 중심 정보를 가져오는 중입니다. 잠시 후 다시 시도해주세요.");
       return;
@@ -329,7 +351,35 @@ export default function Home() {
   const errorMsg = (locationError || searchError) ? String(locationError || searchError) : null;
 
   const mapMarkers = useMemo(() => {
-    const baseMarkers = activeTab === 'search' ? [
+    console.log('mapMarkers useMemo - parkingLots:', parkingLots);
+    let sourceMarkers: any[] = [];
+    if (activeTab === 'search') {
+      if (activeSearchTab === 'searchResults') {
+        sourceMarkers = allMarkers.map(marker => ({
+          ...marker,
+          markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default',
+          isParkingLot: false,
+        }));
+      } else if (activeSearchTab === 'nearbyParking') {
+        sourceMarkers = parkingLots.map(p => ({
+          placeId: String(p.id),
+          placeName: p.parkingLotNm,
+          roadAddress: p.roadAddress,
+          lotAddress: p.lotAddress,
+          lat: p.lat,
+          lng: p.lng,
+          distance: p.distance,
+          phone: '', 
+          categoryGroupName: p.parkingChargeInfo,
+            parkingChargeInfo: p.parkingChargeInfo,
+          placeUrl: '',
+          markerType: String(p.id) === selectedPlaceId ? 'selected' : 'parking',
+          isParkingLot: true,
+        }));
+      }
+    }
+
+    const baseMarkers = [
       ...(location ? [{
         placeId: "user-location",
         placeName: "내 위치",
@@ -337,26 +387,14 @@ export default function Home() {
         lng: location.longitude,
         markerType: "userLocation",
       }] : []),
-      ...allMarkers.map(marker => ({
-        placeId: marker.placeId,
-        placeName: marker.placeName,
-        lat: marker.lat,
-        lng: marker.lng,
-        categoryGroupName: marker.categoryGroupName,
-        roadAddress: marker.roadAddress,
-        roadAddressDong: marker.roadAddressDong,
-        lotAddress: marker.lotAddress,
-        phone: marker.phone,
-        placeUrl: marker.placeUrl,
-        markerType: marker.placeId === selectedPlaceId ? 'selected' : 'default'
-      }))
-    ] : [];
+      ...sourceMarkers,
+    ];
 
     if (temporarySelectedMarker && !baseMarkers.some(m => m.placeId === temporarySelectedMarker.placeId)) {
       return [...baseMarkers, { ...temporarySelectedMarker, markerType: 'selected' }];
     }
     return baseMarkers;
-  }, [activeTab, location, allMarkers, selectedPlaceId, temporarySelectedMarker]);
+  }, [activeTab, activeSearchTab, location, allMarkers, parkingLots, selectedPlaceId, temporarySelectedMarker]);
 
   const mapRouteResult = useMemo(() => {
     return activeTab === 'route' ? routeResult : null;
@@ -414,6 +452,11 @@ export default function Home() {
         handleSearchInArea={handleSearchInArea}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        activeSearchTab={activeSearchTab}
+        setActiveSearchTab={setActiveSearchTab}
+        parkingLots={parkingLots}
+        parkingLotsLoading={parkingLotsLoading}
+        parkingLotsError={parkingLotsError}
         startLocation={startLocation}
         setStartLocation={setStartLocation}
         endLocation={endLocation}

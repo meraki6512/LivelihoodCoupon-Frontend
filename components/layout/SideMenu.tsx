@@ -47,6 +47,11 @@ interface SideMenuProps {
   clearRoute: () => void;
   activeTab: 'search' | 'route';
   setActiveTab: (tab: 'search' | 'route') => void; // Add setActiveTab here
+  activeSearchTab: 'searchResults' | 'nearbyParking';
+  setActiveSearchTab: (tab: 'searchResults' | 'nearbyParking') => void;
+  parkingLots: any[];
+  parkingLotsLoading: boolean;
+  parkingLotsError: string | null;
   // Props from useSharedSearch that are now passed directly
   startLocation: string;
   setStartLocation: (location: string) => void;

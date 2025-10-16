@@ -2,6 +2,9 @@ import React, { useRef, useEffect } from "react";
 import styled from "styled-components";
 import { useRecentlyViewedPlaces, MAX_RECENTLY_VIEWED_PLACES } from "../hooks/useRecentlyViewedPlaces";
 import { MarkerData } from "../types/kakaoMap";
+import { Ionicons } from '@expo/vector-icons'; // Import Ionicons
+import Svg, { Circle, Text as SvgText } from 'react-native-svg';
+import {View} from "react-native"; // Import Svg components
 
 interface RecentlyViewedPlacesProps {
   onPlaceClick: (place: MarkerData) => void;
@@ -71,18 +74,42 @@ const RecentlyViewedPlaces: React.FC<RecentlyViewedPlacesProps> = ({ onPlaceClic
         <EmptyMessage>최근 본 장소가 없습니다.</EmptyMessage>
       ) : (
         <>
-          {recentlyViewedPlaces.map((place) => (
-            <PlaceItem key={place.placeId}>
-              <MarkerIcon /> {/* Add the marker icon */}
-              <PlaceInfo onClick={() => onPlaceClick(place)}>
-                <PlaceName>{place.placeName}</PlaceName>
-                <PlaceAddress>{place.roadAddress || place.lotAddress}</PlaceAddress>
-              </PlaceInfo>
-              <RemoveButton onClick={(e) => { e.stopPropagation(); removePlace(place.placeId); }}>
-                &times;
-              </RemoveButton>
-            </PlaceItem>
-          ))}
+          {recentlyViewedPlaces.map((place) => {
+            const isParkingLot = !!place.isParkingLot;
+            const iconColor = isParkingLot ? "#9932CC" : "#007bff";
+
+            return (
+              <PlaceItem key={place.placeId}>
+                <View style={{ marginRight: 10, flexShrink: 0, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+                  {isParkingLot ? (
+                      <Svg width="24" height="24" viewBox="0 0 24 24">
+                          <Circle cx="12" cy="12" r="11" fill={iconColor} stroke="#fff" strokeWidth="2"/>
+                          <SvgText
+                              x="12.5"
+                              y="18"
+                              fontFamily="Arial, sans-serif"
+                              fontSize="15"
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              fill="#fff"
+                          >
+                              P
+                          </SvgText>
+                      </Svg>
+                  ) : (
+                    <Ionicons name="location-sharp" size={24} color={iconColor} />
+                  )}
+                </View>
+                <PlaceInfo onClick={() => onPlaceClick(place)}>
+                  <PlaceName>{place.placeName}</PlaceName>
+                  <PlaceAddress>{place.roadAddress || place.lotAddress}</PlaceAddress>
+                </PlaceInfo>
+                <RemoveButton onClick={(e) => { e.stopPropagation(); removePlace(place.placeId); }}>
+                  &times;
+                </RemoveButton>
+              </PlaceItem>
+            );
+          })}
           {totalPages > 1 && (
             <PaginationContainer>
               <PaginationButton onClick={goToPreviousPage} disabled={currentPage === 1}>
@@ -120,15 +147,6 @@ const PlaceItem = styled.div`
   &:hover {
     background-color: #f9f9f9;
   }
-`;
-
-const MarkerIcon = styled.div`
-  width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background-color: #3690FF; /* Generic marker color */
-  margin-right: 10px;
-  flex-shrink: 0; /* Prevent shrinking */
 `;
 
 const PlaceInfo = styled.div`

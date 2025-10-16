@@ -67,6 +67,11 @@ interface HomeWebLayoutProps {
   handleSearchInArea: () => void;
   activeTab: 'search' | 'route';
   setActiveTab: (tab: 'search' | 'route') => void;
+  activeSearchTab: 'searchResults' | 'nearbyParking';
+  setActiveSearchTab: (tab: 'searchResults' | 'nearbyParking') => void;
+  parkingLots: any[]; // Replace 'any' with the actual ParkingLot type
+  parkingLotsLoading: boolean;
+  parkingLotsError: string | null;
   // New props from useSharedSearch
   startLocation: string;
   setStartLocation: (location: string) => void;
@@ -143,6 +148,11 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
   handleSearchInArea,
   activeTab,
   setActiveTab,
+  activeSearchTab,
+  setActiveSearchTab,
+  parkingLots,
+  parkingLotsLoading,
+  parkingLotsError,
   // New props from useSharedSearch
   startLocation,
   setStartLocation,
@@ -225,6 +235,11 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
               clearRoute={clearRoute}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
+              activeSearchTab={activeSearchTab}
+              setActiveSearchTab={setActiveSearchTab}
+              parkingLots={parkingLots}
+              parkingLotsLoading={parkingLotsLoading}
+              parkingLotsError={parkingLotsError}
               startLocation={startLocation}
               setStartLocation={setStartLocation}
               endLocation={endLocation}
@@ -290,7 +305,9 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
                   onPress={handleSearchInArea}
                 >
                   <Ionicons name="reload-outline" size={16} color="white" style={{ marginRight: 8 }} />
-                  <Text style={webStyles.searchInAreaButtonText}>현 지도에서 검색</Text>
+                  <Text style={webStyles.searchInAreaButtonText}>
+                    {activeSearchTab === 'nearbyParking' ? '현재 지도에서 주차장 검색' : '현재 지도에서 검색'}
+                  </Text>
                 </TouchableOpacity>
               )}
               {/* Recently Viewed Places Button */}

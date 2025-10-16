@@ -20,6 +20,7 @@ export const useSharedSearch = (externalRouteResult: any, externalIsRouteLoading
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [startLocationObject, setStartLocationObject] = useState<SearchResult | null>(null);
   const [endLocationObject, setEndLocationObject] = useState<SearchResult | null>(null);
+  const [activeSearchTab, setActiveSearchTab] = useState<'searchResults' | 'nearbyParking'>('searchResults');
 
   const startSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const endSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -229,5 +230,7 @@ export const useSharedSearch = (externalRouteResult: any, externalIsRouteLoading
     setStartLocationObject,
     endLocationObject,
     setEndLocationObject,
+    activeSearchTab,
+    setActiveSearchTab,
   };
 };

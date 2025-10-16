@@ -52,27 +52,18 @@ export const useRecentlyViewedPlaces = () => {
   }, [refreshKey]); // refreshKey still triggers a re-read
 
   const addPlace = (place: Place) => {
-    setAllRecentlyViewedPlaces((prevPlaces) => {
-      console.log("addPlace called with:", place.placeName, "(" + place.placeId + ")");
-      console.log("Previous places:", prevPlaces.map(p => p.placeName + "(" + p.placeId + ")"));
-
+    if (typeof window !== "undefined") {
+      const storedPlaces = localStorage.getItem(RECENTLY_VIEWED_PLACES_KEY);
+      const currentPlaces = storedPlaces ? JSON.parse(storedPlaces) : [];
+      
       // Remove if already exists to move it to the top
-      const filteredPlaces = prevPlaces.filter((p) => p.placeId !== place.placeId);
-
+      const filteredPlaces = currentPlaces.filter((p: Place) => p.placeId !== place.placeId);
       const newPlaces = [place, ...filteredPlaces];
-
-      // Limit to MAX_RECENTLY_VIEWED_PLACES
       const limitedPlaces = newPlaces.slice(0, MAX_RECENTLY_VIEWED_PLACES);
 
-      console.log("New limited places:", limitedPlaces.map(p => p.placeName + "(" + p.placeId + ")"));
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem(RECENTLY_VIEWED_PLACES_KEY, JSON.stringify(limitedPlaces));
-        setRefreshKey((prev) => prev + 1); // Increment refreshKey
-        // window.dispatchEvent(new Event('recentlyViewedStorageChange')); // Removed redundant dispatch
-      }
-      return limitedPlaces;
-    });
+      localStorage.setItem(RECENTLY_VIEWED_PLACES_KEY, JSON.stringify(limitedPlaces));
+      setRefreshKey((prev) => prev + 1); // Trigger re-read from storage
+    }
   };
 
   const totalPages = useMemo(() => Math.ceil(allRecentlyViewedPlaces.length / ITEMS_PER_PAGE), [allRecentlyViewedPlaces.length]);
@@ -96,22 +87,21 @@ export const useRecentlyViewedPlaces = () => {
   };
 
   const removePlace = (placeId: string) => {
-    setAllRecentlyViewedPlaces((prevPlaces) => {
-      const updatedPlaces = prevPlaces.filter((place) => place.placeId !== placeId);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(RECENTLY_VIEWED_PLACES_KEY, JSON.stringify(updatedPlaces));
-        setRefreshKey((prev) => prev + 1); // Increment refreshKey
-        // window.dispatchEvent(new Event('recentlyViewedStorageChange')); // Removed redundant dispatch
-      }
+    if (typeof window !== "undefined") {
+      const storedPlaces = localStorage.getItem(RECENTLY_VIEWED_PLACES_KEY);
+      const currentPlaces = storedPlaces ? JSON.parse(storedPlaces) : [];
+      const updatedPlaces = currentPlaces.filter((place: Place) => place.placeId !== placeId);
+      
+      localStorage.setItem(RECENTLY_VIEWED_PLACES_KEY, JSON.stringify(updatedPlaces));
+      
       // If the current page becomes empty after removal, go to the previous page
       const newTotalPages = Math.ceil(updatedPlaces.length / ITEMS_PER_PAGE);
       if (currentPage > newTotalPages && newTotalPages > 0) {
         setCurrentPage(newTotalPages);
-      } else if (newTotalPages === 0) {
-        setCurrentPage(1); // Reset to page 1 if no places left
       }
-      return updatedPlaces;
-    });
+      
+      setRefreshKey((prev) => prev + 1); // Trigger re-read from storage
+    }
   };
 
   return {

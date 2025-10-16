@@ -75,6 +75,11 @@ interface SharedSearchProps {
   setStartLocationObject: (loc: SearchResult | null) => void;
   endLocationObject: SearchResult | null;
   setEndLocationObject: (loc: SearchResult | null) => void;
+  activeSearchTab: 'searchResults' | 'nearbyParking';
+  setActiveSearchTab: (tab: 'searchResults' | 'nearbyParking') => void;
+  parkingLots: any[];
+  parkingLotsLoading: boolean;
+  parkingLotsError: string | null;
 }
 
 const WebSharedSearch: React.FC<SharedSearchProps> = ({
@@ -129,8 +134,12 @@ const WebSharedSearch: React.FC<SharedSearchProps> = ({
   setStartLocationObject,
   endLocationObject,
   setEndLocationObject,
+  activeSearchTab,
+  setActiveSearchTab,
+  parkingLots,
+  parkingLotsLoading,
+  parkingLotsError,
   }) => {
-  const [activeSearchTab, setActiveSearchTab] = useState<'searchResults' | 'nearbyParking'>('searchResults');
   const [hasPerformedSearch, setHasPerformedSearch] = useState(false); // New state to track if a search has been performed
   const [recentSearches, setRecentSearches] = useState<string[]>([]); // New state for recent searches
   const [isSearchBarFocused, setIsSearchBarFocused] = useState(false); // New state for search bar focus
@@ -486,7 +495,32 @@ const WebSharedSearch: React.FC<SharedSearchProps> = ({
               </>
             ) : (
               <View style={commonStyles.parkingLotContent}>
-                <Text style={commonStyles.parkingLotText}>주변 주차장 정보가 여기에 표시됩니다.</Text>
+                {parkingLotsLoading ? (
+                  <ActivityIndicator size="large" color="#3690FF" style={{ marginTop: 20 }} />
+                ) : parkingLotsError ? (
+                  <Text style={commonStyles.errorText}>{parkingLotsError}</Text>
+                ) : parkingLots && parkingLots.length > 0 ? (
+                  <FlatList
+                    data={parkingLots.map(p => ({
+                      placeId: String(p.id),
+                      placeName: p.parkingLotNm,
+                      roadAddress: p.roadAddress,
+                      lotAddress: p.lotAddress,
+                      lat: p.lat,
+                      lng: p.lng,
+                      distance: p.distance,
+                      phone: '', // ParkingLot type doesn't have phone, add if needed
+                      categoryGroupName: '주차장', // Set a default category name
+                        parkingChargeInfo: p.parkingChargeInfo, // Pass the parkingChargeInfo correctly
+                      placeUrl: '',
+                      roadAddressDong: '',
+                    }))}
+                    keyExtractor={(item) => item.placeId}
+                    renderItem={({ item }) => <SearchResultItem item={item} onPress={onSelectResult} />}
+                  />
+                ) : (
+                  <Text style={commonStyles.noResultText}>주변에 주차장 정보가 없습니다.</Text>
+                )}
               </View>
             )}
           </View>

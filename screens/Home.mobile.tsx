@@ -352,7 +352,7 @@ export default function HomeMobile() {
             if (bottomSheetOpen && bottomSheetHeight) {
                 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
                 const heightRatio = bottomSheetHeight / SCREEN_HEIGHT;
-                const baseOffset = -0.002;
+                const baseOffset = -0.001;
                 const zoomFactor = Math.max(0.5, Math.min(2.0, heightRatio * 3));
                 const offsetLat = baseOffset * zoomFactor;
 

@@ -178,7 +178,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
     };
 
     // 자동완성 제안 가져오기
-    const fetchAutocompleteSuggestions = async (query: string) => {
+    const fetchAutocompleteSuggestions = useCallback(async (query: string) => {
         if (query.length < 2) {
             setAutocompleteSuggestions([]);
             setShowAutocomplete(false);
@@ -195,7 +195,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             setAutocompleteSuggestions([]);
             setShowAutocomplete(false);
         }
-    };
+    }, []);
 
     // 자동완성 제안 선택 핸들러 (useCallback 최적화)
     const handleSuggestionSelect = useCallback((suggestion: string) => {
@@ -217,7 +217,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         } else {
             setShowAutocomplete(false);
         }
-    }, [searchQuery, isSearchFocused, hasSearched]);
+    }, [searchQuery, isSearchFocused, hasSearched, fetchAutocompleteSuggestions]);
 
 
     // 자동 축소 기능 제거 - 현재 위치가 지도 중심이 되도록 유지
@@ -328,7 +328,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         if (showPlaceDetail) {
             setShowPlaceDetail(false);
         }
-    }, [searchQuery, selectedCategory, setShowPlaceDetail]);
+    }, [searchQuery, selectedCategory]);
 
     // 길찾기 모드 관련 함수들 (useCallback 최적화)
     const handleRoutePress = useCallback(() => {
@@ -374,7 +374,22 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             clearRoute();
         }
 
-        // 3. 마커 복원 (WebView 업데이트)
+        // 3. 길찾기 시각화 제거 (WebView에서 경로 라인 제거)
+        if (webViewRef.current) {
+            const script = `
+        if (typeof clearRoute === 'function') {
+          clearRoute();
+        }
+        // 검색 마커들도 정리
+        if (typeof clearSearchMarkers === 'function') {
+          clearSearchMarkers();
+        }
+        true;
+      `;
+            webViewRef.current.injectJavaScript(script);
+        }
+
+        // 4. 마커 복원 (WebView 업데이트)
         if (webViewRef.current && allMarkers.length > 0) {
             const script = `
         if (typeof updateMarkers === 'function') {
@@ -391,7 +406,47 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
 
         // 교통수단 변경 시 유효한 경로가 있으면 자동으로 길찾기 실행
         if (startLocation && endLocation && startLocation.trim() && endLocation.trim()) {
-            handleStartRoute();
+            // handleStartRoute 대신 직접 길찾기 실행
+            if (startRoute) {
+                const startLocationData = (!startLocation || startLocation === '내 위치') ? {
+                    placeId: 'current_location',
+                    placeName: '내 위치',
+                    lat: location?.latitude || 0,
+                    lng: location?.longitude || 0,
+                    roadAddress: '현재 위치',
+                    lotAddress: '',
+                    phone: '',
+                    categoryGroupName: '내 위치',
+                    placeUrl: '',
+                    distance: 0,
+                    roadAddressDong: ''
+                } : startLocationResults.find(r => r.placeName === startLocation) ||
+                    (selectedStartLocation && selectedStartLocation.placeName === startLocation ? selectedStartLocation : null);
+
+                const endLocationData = (!endLocation || endLocation === '내 위치') ? {
+                    placeId: 'current_location',
+                    placeName: '내 위치',
+                    lat: location?.latitude || 0,
+                    lng: location?.longitude || 0,
+                    roadAddress: '현재 위치',
+                    lotAddress: '',
+                    phone: '',
+                    categoryGroupName: '내 위치',
+                    placeUrl: '',
+                    distance: 0,
+                    roadAddressDong: ''
+                } : endLocationResults.find(r => r.placeName === endLocation) ||
+                    (selectedEndLocation && selectedEndLocation.placeName === endLocation ? selectedEndLocation : null);
+
+                if (startLocationData && endLocationData) {
+                    startRoute({
+                        startLocation: startLocationData,
+                        endLocation: endLocationData,
+                        transportMode: mode as any,
+                        userLocation: location
+                    });
+                }
+            }
         }
     };
 
@@ -613,6 +668,21 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 (selectedEndLocation && selectedEndLocation.placeName === endLocation ? selectedEndLocation : null);
 
             if (endLocationData && startRoute) {
+                // 동일한 좌표인지 체크
+                const isSameLocation = result.lat === endLocationData.lat && result.lng === endLocationData.lng;
+                
+                if (isSameLocation) {
+                    Alert.alert(
+                        '길찾기 불가',
+                        '출발지와 도착지가 동일합니다.\n다른 목적지를 선택해주세요.',
+                        [{ text: '확인', style: 'default' }]
+                    );
+                    setEndLocation('');
+                    setEndLocationResults([]);
+                    setSelectedEndLocation(null);
+                    return;
+                }
+
                 startRoute({
                     startLocation: result,
                     endLocation: endLocationData,
@@ -631,12 +701,51 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         // 목적지 선택 시 출발지가 이미 설정되어 있으면 바로 길찾기 실행
         if (startLocation && startLocation !== '내 위치') {
             // 출발지 데이터 찾기
-            const startLocationData = startLocationResults.find(r => r.placeName === startLocation);
+            const startLocationData = startLocationResults.find(r => r.placeName === startLocation) ||
+                (selectedStartLocation && selectedStartLocation.placeName === startLocation ? selectedStartLocation : null);
+            
             if (startLocationData && startRoute) {
-                startRoute(startLocationData, result);
+                // 동일한 좌표인지 체크
+                const isSameLocation = startLocationData.lat === result.lat && startLocationData.lng === result.lng;
+                
+                if (isSameLocation) {
+                    Alert.alert(
+                        '길찾기 불가',
+                        '출발지와 도착지가 동일합니다.\n다른 목적지를 선택해주세요.',
+                        [{ text: '확인', style: 'default' }]
+                    );
+                    setEndLocation('');
+                    setEndLocationResults([]);
+                    setSelectedEndLocation(null);
+                    return;
+                }
+
+                startRoute({
+                    startLocation: startLocationData,
+                    endLocation: result,
+                    transportMode: selectedTransportMode as any,
+                    userLocation: location
+                });
             }
         } else if (startLocation === '내 위치') {
             if (startRoute) {
+                // 동일한 좌표인지 체크 (내 위치와 목적지)
+                const isSameLocation = location && 
+                    Math.abs(location.latitude - result.lat) < 0.0001 && 
+                    Math.abs(location.longitude - result.lng) < 0.0001;
+                
+                if (isSameLocation) {
+                    Alert.alert(
+                        '길찾기 불가',
+                        '출발지와 도착지가 동일합니다.\n다른 목적지를 선택해주세요.',
+                        [{ text: '확인', style: 'default' }]
+                    );
+                    setEndLocation('');
+                    setEndLocationResults([]);
+                    setSelectedEndLocation(null);
+                    return;
+                }
+
                 startRoute({
                     startLocation: '내 위치',
                     endLocation: result,
@@ -666,74 +775,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         setEndLocationResults([]);
     };
 
-    // 출발지와 목적지가 모두 설정되면 자동으로 길찾기 실행
-    useEffect(() => {
-        // 출발지와 목적지가 모두 설정되어 있고, 둘 다 유효한 데이터일 때만 실행
-        if (startLocation && endLocation &&
-            (selectedStartLocation || startLocation === '내 위치') &&
-            (selectedEndLocation || endLocation === '내 위치')) {
-
-            // selectedStartLocation과 selectedEndLocation을 우선적으로 사용
-            const finalStartData = selectedStartLocation;
-            const finalEndData = selectedEndLocation;
-
-            // startLocation이 "내 위치"인 경우 현재 위치 데이터 생성
-            const finalStartDataWithCurrentLocation = (startLocation === '내 위치') ? {
-                placeId: 'current_location',
-                placeName: '내 위치',
-                lat: location?.latitude || 0,
-                lng: location?.longitude || 0,
-                roadAddress: '현재 위치',
-                lotAddress: '',
-                phone: '',
-                categoryGroupName: '내 위치',
-                placeUrl: '',
-                distance: 0,
-                roadAddressDong: ''
-            } : finalStartData;
-
-            // endLocation이 "내 위치"인 경우 현재 위치 데이터 생성
-            const finalEndDataWithCurrentLocation = (endLocation === '내 위치') ? {
-                placeId: 'current_location',
-                placeName: '내 위치',
-                lat: location?.latitude || 0,
-                lng: location?.longitude || 0,
-                roadAddress: '현재 위치',
-                lotAddress: '',
-                phone: '',
-                categoryGroupName: '내 위치',
-                placeUrl: '',
-                distance: 0,
-                roadAddressDong: ''
-            } : finalEndData;
-
-            // 출발지와 목적지가 모두 유효한 경우에만 체크
-            if (finalStartDataWithCurrentLocation && finalEndDataWithCurrentLocation) {
-                // 동일한 좌표인지 먼저 체크
-                const isSameLocation = finalStartDataWithCurrentLocation.lat === finalEndDataWithCurrentLocation.lat &&
-                    finalStartDataWithCurrentLocation.lng === finalEndDataWithCurrentLocation.lng;
-
-                if (isSameLocation) {
-                    // 동일한 좌표인 경우 Alert 표시하고 목적지 비우기
-                    Alert.alert(
-                        '길찾기 불가',
-                        '출발지와 도착지가 동일합니다.\n다른 목적지를 선택해주세요.',
-                        [{ text: '확인', style: 'default' }]
-                    );
-                    // 목적지 비우기
-                    setEndLocation('');
-                    setEndLocationResults([]);
-                    setSelectedEndLocation(null);
-                    return;
-                }
-
-                // 정상적인 경우에만 길찾기 실행
-                handleStartRoute();
-            }
-        }
-    }, [selectedStartLocation, selectedEndLocation, selectedTransportMode, startLocation, endLocation, location]);
-
-    const handleStartRoute = () => {
+    const handleStartRoute = useCallback(() => {
         if (!endLocation) {
             return;
         }
@@ -803,7 +845,95 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 });
             }
         }
-    };
+    }, [startLocation, endLocation, location, startLocationResults, selectedStartLocation, endLocationResults, selectedEndLocation, selectedTransportMode, startRoute]);
+
+    // 자동 길찾기 실행을 위한 ref (무한 루프 방지)
+    const autoRouteExecutedRef = useRef(false);
+    const lastRouteParamsRef = useRef<string>('');
+
+    // 출발지와 목적지가 모두 설정되면 자동으로 길찾기 실행 (무한 루프 방지)
+    useEffect(() => {
+        // 출발지와 목적지가 모두 설정되어 있고, 둘 다 유효한 데이터일 때만 실행
+        if (startLocation && endLocation &&
+            (selectedStartLocation || startLocation === '내 위치') &&
+            (selectedEndLocation || endLocation === '내 위치')) {
+
+            // 현재 파라미터 조합 생성 (무한 루프 방지용)
+            const currentParams = `${startLocation}-${endLocation}-${selectedTransportMode}`;
+            
+            // 이전과 동일한 파라미터면 실행하지 않음 (무한 루프 방지)
+            if (lastRouteParamsRef.current === currentParams) {
+                return;
+            }
+            
+            lastRouteParamsRef.current = currentParams;
+
+            // selectedStartLocation과 selectedEndLocation을 우선적으로 사용
+            const finalStartData = selectedStartLocation;
+            const finalEndData = selectedEndLocation;
+
+            // startLocation이 "내 위치"인 경우 현재 위치 데이터 생성
+            const finalStartDataWithCurrentLocation = (startLocation === '내 위치') ? {
+                placeId: 'current_location',
+                placeName: '내 위치',
+                lat: location?.latitude || 0,
+                lng: location?.longitude || 0,
+                roadAddress: '현재 위치',
+                lotAddress: '',
+                phone: '',
+                categoryGroupName: '내 위치',
+                placeUrl: '',
+                distance: 0,
+                roadAddressDong: ''
+            } : finalStartData;
+
+            // endLocation이 "내 위치"인 경우 현재 위치 데이터 생성
+            const finalEndDataWithCurrentLocation = (endLocation === '내 위치') ? {
+                placeId: 'current_location',
+                placeName: '내 위치',
+                lat: location?.latitude || 0,
+                lng: location?.longitude || 0,
+                roadAddress: '현재 위치',
+                lotAddress: '',
+                phone: '',
+                categoryGroupName: '내 위치',
+                placeUrl: '',
+                distance: 0,
+                roadAddressDong: ''
+            } : finalEndData;
+
+            // 출발지와 목적지가 모두 유효한 경우에만 체크
+            if (finalStartDataWithCurrentLocation && finalEndDataWithCurrentLocation) {
+                // 동일한 좌표인지 먼저 체크
+                const isSameLocation = finalStartDataWithCurrentLocation.lat === finalEndDataWithCurrentLocation.lat &&
+                    finalStartDataWithCurrentLocation.lng === finalEndDataWithCurrentLocation.lng;
+
+                if (isSameLocation) {
+                    // 동일한 좌표인 경우 Alert 표시하고 목적지 비우기
+                    Alert.alert(
+                        '길찾기 불가',
+                        '출발지와 도착지가 동일합니다.\n다른 목적지를 선택해주세요.',
+                        [{ text: '확인', style: 'default' }]
+                    );
+                    // 목적지 비우기
+                    setEndLocation('');
+                    setEndLocationResults([]);
+                    setSelectedEndLocation(null);
+                    return;
+                }
+
+                // 정상적인 경우에만 길찾기 실행
+                if (startRoute) {
+                    startRoute({
+                        startLocation: finalStartDataWithCurrentLocation,
+                        endLocation: finalEndDataWithCurrentLocation,
+                        transportMode: selectedTransportMode as any,
+                        userLocation: location
+                    });
+                }
+            }
+        }
+    }, [selectedStartLocation, selectedEndLocation, selectedTransportMode, startLocation, endLocation, location, startRoute]);
 
     // 하드웨어 뒤로가기 버튼 처리
     useEffect(() => {
@@ -842,6 +972,11 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             true;
           `;
                     webViewRef.current.injectJavaScript(script);
+                }
+
+                // 길찾기 상태 초기화 (clearRoute 함수 호출)
+                if (clearRoute) {
+                    clearRoute();
                 }
 
                 // 상태 초기화 - 바텀시트 완전히 제거
@@ -900,6 +1035,11 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
             true;
           `;
                     webViewRef.current.injectJavaScript(script);
+                }
+
+                // 길찾기 상태 초기화 (clearRoute 함수 호출)
+                if (clearRoute) {
+                    clearRoute();
                 }
 
                 // 상태 초기화 - 바텀시트 완전히 제거
@@ -1227,8 +1367,8 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 latitude={mapCenter?.latitude ?? 37.5665}
                 longitude={mapCenter?.longitude ?? 126.9780}
                 style={[mobileStyles.mapFullScreen, { zIndex: 1001 }] as any}
-                markers={markers}
-                routeResult={routeResult}
+                markers={isRouteMode || showRouteDetail || (!bottomSheetOpen && bottomSheetHeight === 0) ? [] : markers}
+                routeResult={isRouteMode || showRouteDetail ? routeResult : null}
                 onMapIdle={onMapIdle}
                 onMarkerPress={(id, lat, lng) => id && onMarkerPress(id, lat, lng)}
                 showInfoWindow={showInfoWindow}

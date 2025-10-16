@@ -5,6 +5,7 @@ import { PageResponse } from "../types/api";
 interface SearchState {
     searchQuery: string;
     searchOptions: SearchOptions;
+    searchCenter: { lat: number; lng: number } | null;
 
     listResults: SearchResult[];
     allMapMarkers: SearchResult[];
@@ -21,7 +22,7 @@ type SearchAction =
     | { type: 'SET_SEARCH_QUERY'; payload: string }
     | { type: 'SET_SEARCH_OPTIONS'; payload: Partial<SearchOptions> }
     | { type: 'START_SEARCH' }
-    | { type: 'SEARCH_SUCCESS'; payload: PageResponse<SearchResult> }
+    | { type: 'SEARCH_SUCCESS'; payload: PageResponse<SearchResult> & { requestLat: number; requestLng: number } }
     | { type: 'SEARCH_FAILURE'; payload: string }
     | { type: 'START_NEXT_PAGE' }
     | { type: 'NEXT_PAGE_SUCCESS'; payload: PageResponse<SearchResult> }
@@ -35,6 +36,7 @@ type SearchAction =
 const initialState: SearchState = {
     searchQuery: "",
     searchOptions: { radius: 1000, sort: 'accuracy' }, // 기본값을 정확순으로 설정
+    searchCenter: null,
     listResults: [],
     allMapMarkers: [],
     pagination: null,
@@ -65,13 +67,23 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
             };
 
         case 'SEARCH_SUCCESS':
-            const { content, ...pageInfo } = action.payload;
+            const { content, requestLat, requestLng, ...pageInfo } = action.payload;
+            
+            // 검색 요청 시 사용한 좌표를 searchCenter로 설정
+            const newSearchCenter = { lat: requestLat, lng: requestLng };
+            
+            console.log('=== SEARCH_SUCCESS (mobile): searchCenter 설정 ===');
+            console.log('requestLat:', requestLat);
+            console.log('requestLng:', requestLng);
+            console.log('newSearchCenter:', newSearchCenter);
+            
             return {
                 ...state,
                 loading: false,
                 listResults: content,
                 allMapMarkers: content,
                 pagination: pageInfo,
+                searchCenter: newSearchCenter,
             };
 
         case 'SEARCH_FAILURE':
@@ -100,6 +112,7 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
             return {
                 ...state,
                 searchQuery: '',
+                searchCenter: null,
                 listResults: [],
                 allMapMarkers: [],
                 pagination: null,
@@ -132,7 +145,26 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
 
 // --- 3. 커스텀 훅 ---
 
-export const useSearch = () => {
+export const useSearch = (): {
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+    searchOptions: SearchOptions;
+    setSearchOptions: (options: Partial<SearchOptions>) => void;
+    searchResults: SearchResult[];
+    allMarkers: SearchResult[];
+    loading: boolean;
+    loadingNextPage: boolean;
+    loadingAllMarkers: boolean;
+    markerCountReachedLimit: boolean;
+    error: string | null;
+    performSearch: (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
+    performSearchWithQuery: (query: string, latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
+    fetchNextPage: (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
+    fetchAllMarkers: (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => Promise<void>;
+    clearSearchResults: () => void;
+    searchCenter: { lat: number; lng: number } | null;
+    pagination: Omit<PageResponse<any>, 'content'> | null;
+} => {
     const [state, dispatch] = useReducer(searchReducer, initialState);
 
     const setSearchQuery = (query: string) => {
@@ -152,7 +184,10 @@ export const useSearch = () => {
         try {
             const firstPageData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, 1, userLatitude, userLongitude);
             // 검색 결과가 없어도 성공으로 처리 (오류가 아님)
-            dispatch({ type: 'SEARCH_SUCCESS', payload: firstPageData });
+            console.log('=== performSearch (mobile): SEARCH_SUCCESS dispatch ===');
+            console.log('latitude:', latitude);
+            console.log('longitude:', longitude);
+            dispatch({ type: 'SEARCH_SUCCESS', payload: { ...firstPageData, requestLat: latitude, requestLng: longitude } });
         } catch (err: any) {
             console.error('Search error:', err);
             dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "검색 중 오류가 발생했습니다." });
@@ -174,7 +209,10 @@ export const useSearch = () => {
             const firstPageData = await searchPlaces(query, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, 1, userLatitude, userLongitude);
 
             // 검색 결과가 없어도 성공으로 처리 (오류가 아님)
-            dispatch({ type: 'SEARCH_SUCCESS', payload: firstPageData });
+            console.log('=== performSearchWithQuery (mobile): SEARCH_SUCCESS dispatch ===');
+            console.log('latitude:', latitude);
+            console.log('longitude:', longitude);
+            dispatch({ type: 'SEARCH_SUCCESS', payload: { ...firstPageData, requestLat: latitude, requestLng: longitude } });
         } catch (err: any) {
             // Search error
             dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "검색 중 오류가 발생했습니다." });
@@ -275,6 +313,7 @@ export const useSearch = () => {
         fetchNextPage,
         fetchAllMarkers,
         clearSearchResults,
+        searchCenter: state.searchCenter,
         pagination: state.pagination,
     };
 };

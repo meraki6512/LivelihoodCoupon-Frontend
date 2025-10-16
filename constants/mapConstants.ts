@@ -4,77 +4,19 @@ export type MarkerType = 'userLocation' | 'selected' | 'default' | 'routeStart' 
 // 마커 이미지 URL 관리 (SVG 기반)
 export const MARKER_IMAGES = {
   // 현재 위치 마커 (파란색 아이콘, 배경 없음)
-  USER_LOCATION: "data:image/svg+xml;base64," + btoa(`
-    <svg width="40" height="40" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#3690FF"/>
-    </svg>
-  `),
+  USER_LOCATION: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMTIgMkM4LjEzIDIgNSA1LjEzIDUgOWMwIDUuMjUgNyAxMyA3IDEzczctNy43NSA3LTEzYzAtMy44Ny0zLjEzLTctNy03em0wIDkuNWMtMS4zOCAwLTIuNS0xLjEyLTIuNS0yLjVzMS4xMi0yLjUgMi41LTIuNSAyLjUgMS4xMiAyLjUgMi41LTEuMTIgMi41LTIuNSAyLjV6IiBmaWxsPSIjMzY5MEZGIi8+Cjwvc3ZnPgo=",
   
   // 선택된 장소 마커 (파란색, 작은 크기)
-  SELECTED: "data:image/svg+xml;base64," + btoa(`
-    <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="selectedGradient" cx="30%" cy="30%">
-          <stop offset="0%" stop-color="#3690FF"/>
-          <stop offset="100%" stop-color="#007bff"/>
-        </radialGradient>
-        <filter id="shadow-selected" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
-        </filter>
-      </defs>
-      <circle cx="10" cy="10" r="7" fill="url(#selectedGradient)" stroke="#fff" stroke-width="2" filter="url(#shadow-selected)"/>
-    </svg>
-  `),
+  SELECTED: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0ic2VsZWN0ZWRHcmFkaWVudCIgY3g9IjMwJSIgY3k9IjMwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMzNjkwRkYiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDA3YmZmIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGZpbHRlciBpZD0ic2hhZG93LXNlbGVjdGVkIiB4PSItNTAlIiB5PSItNTAlIiB3aWR0aD0iMjAwJSIgaGVpZ2h0PSIyMDAlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjIiIHN0ZERldmlhdGlvbj0iMyIgZmxvb2QtY29sb3I9InJnYmEoMCwwLDAsMC4zKSIvPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgogIDxjaXJjbGUgY3g9IjEwIiBjeT0iMTAiIHI9IjciIGZpbGw9InVybCgjc2VsZWN0ZWRHcmFkaWVudCkiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWx0ZXI9InVybCgjc2hhZG93LXNlbGVjdGVkKSIvPgo8L3N2Zz4K",
   
   // 기본 장소 마커 (작은 크기, 회색 그라데이션 + 그림자)
-  DEFAULT: "data:image/svg+xml;base64," + btoa(`
-    <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="defaultGradient" cx="30%" cy="30%">
-          <stop offset="0%" stop-color="#9CA3AF"/>
-          <stop offset="100%" stop-color="#6c757d"/>
-        </radialGradient>
-        <filter id="shadow-default" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.2)"/>
-        </filter>
-      </defs>
-      <circle cx="8" cy="8" r="5" fill="url(#defaultGradient)" stroke="#fff" stroke-width="1.5" filter="url(#shadow-default)"/>
-    </svg>
-  `),
+  DEFAULT: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZGVmYXVsdEdyYWRpZW50IiBjeD0iMzAlIiBjeT0iMzAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzlDQTNBRiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiM2Yzc1N2QiLz4KICAgIDwvcmFkaWFsR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJzaGFkb3ctZGVmYXVsdCIgeD0iLTUwJSIgeT0iLTUwJSIgd2lkdGg9IjIwMCUiIGhlaWdodD0iMjAwJSI+CiAgICAgIDxmZURyb3BTaGFkb3cgZHg9IjAiIGR5PSIxIiBzdGREZXZpYXRpb249IjIiIGZsb29kLWNvbG9yPSJyZ2JhKDAsMCwwLDAuMikiLz4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KICA8Y2lyY2xlIGN4PSI4IiBjeT0iOCIgcj0iNSIgZmlsbD0idXJsKCNkZWZhdWx0R3JhZGllbnQpIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMS41IiBmaWx0ZXI9InVybCgjc2hhZG93LWRlZmF1bHQpIi8+Cjwvc3ZnPgo=",
   
   // 경로 출발지 마커 (녹색 그라데이션 + 그림자)
-  ROUTE_START: "data:image/svg+xml;base64," + btoa(`
-    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="startGradient" cx="30%" cy="30%">
-          <stop offset="0%" stop-color="#4CAF50"/>
-          <stop offset="100%" stop-color="#28a745"/>
-        </radialGradient>
-        <filter id="shadow-start" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
-        </filter>
-      </defs>
-      <circle cx="18" cy="18" r="14" fill="url(#startGradient)" stroke="#fff" stroke-width="3" filter="url(#shadow-start)"/>
-      <circle cx="18" cy="18" r="6" fill="#fff"/>
-    </svg>
-  `),
+  ROUTE_START: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0ic3RhcnRHcmFkaWVudCIgY3g9IjMwJSIgY3k9IjMwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0Q0FGNTAiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMjhhNzQ1Ii8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGZpbHRlciBpZD0ic2hhZG93LXN0YXJ0IiB4PSItNTAlIiB5PSItNTAlIiB3aWR0aD0iMjAwJSIgaGVpZ2h0PSIyMDAlIj4KICAgICAgPGZlRHJvcFNoYWRvdyBkeD0iMCIgZHk9IjMiIHN0ZERldmlhdGlvbj0iNCIgZmxvb2QtY29sb3I9InJnYmEoMCwwLDAsMC40KSIvPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgogIDxjaXJjbGUgY3g9IjE4IiBjeT0iMTgiIHI9IjE0IiBmaWxsPSJ1cmwoI3N0YXJ0R3JhZGllbnQpIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZmlsdGVyPSJ1cmwoI3NoYWRvdy1zdGFydCkiLz4KICA8Y2lyY2xlIGN4PSIxOCIgY3k9IjE4IiByPSI2IiBmaWxsPSIjZmZmIi8+Cjwvc3ZnPgo=",
   
   // 경로 도착지 마커 (빨간색 그라데이션 + 그림자)
-  ROUTE_END: "data:image/svg+xml;base64," + btoa(`
-    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <radialGradient id="endGradient" cx="30%" cy="30%">
-          <stop offset="0%" stop-color="#FF5722"/>
-          <stop offset="100%" stop-color="#dc3545"/>
-        </radialGradient>
-        <filter id="shadow-end" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
-        </filter>
-      </defs>
-      <circle cx="18" cy="18" r="14" fill="url(#endGradient)" stroke="#fff" stroke-width="3" filter="url(#shadow-end)"/>
-      <circle cx="18" cy="18" r="6" fill="#fff"/>
-    </svg>
-  `),
+  ROUTE_END: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYiIGhlaWdodD0iMzYiIHZpZXdCb3g9IjAgMCAzNiAzNiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iZW5kR3JhZGllbnQiIGN4PSIzMCUiIGN5PSIzMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjRkY1NzIyIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2RjMzU0NSIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICAgIDxmaWx0ZXIgaWQ9InNoYWRvdy1lbmQiIHg9Ii01MCUiIHk9Ii01MCUiIHdpZHRoPSIyMDAlIiBoZWlnaHQ9IjIwMCUiPgogICAgICA8ZmVEcm9wU2hhZG93IGR4PSIwIiBkeT0iMyIgc3RkRGV2aWF0aW9uPSI0IiBmbG9vZC1jb2xvcj0icmdiYSgwLDAsMCwwLjQpIi8+CiAgICA8L2ZpbHRlcj4KICA8L2RlZnM+CiAgPGNpcmNsZSBjeD0iMTgiIGN5PSIxOCIgcj0iMTQiIGZpbGw9InVybCgjZW5kR3JhZGllbnQpIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMyIgZmlsdGVyPSJ1cmwoI3NoYWRvdy1lbmQpIi8+CiAgPGNpcmNsZSBjeD0iMTgiIGN5PSIxOCIgcj0iNiIgZmlsbD0iI2ZmZiIvPgo8L3N2Zz4K",
 };
 
 // 마커 설정 관리

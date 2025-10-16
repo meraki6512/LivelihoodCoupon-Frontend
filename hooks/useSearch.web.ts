@@ -73,19 +73,15 @@ const searchReducer = (state: SearchState, action: SearchAction): SearchState =>
       };
 
     case 'SEARCH_SUCCESS':
-      const { content, searchCenterLat, searchCenterLng, requestLat, requestLng, forceLocationSearch, ...pageInfo } = action.payload;
-      console.log("SEARCH_SUCCESS payload:", action.payload);
-      console.log("searchCenterLat from API:", searchCenterLat);
-      console.log("searchCenterLng from API:", searchCenterLng);
+      const { content, requestLat, requestLng, forceLocationSearch, ...pageInfo } = action.payload;
 
-      let newSearchCenter: { lat: number; lng: number } | null = null;
-      if (forceLocationSearch) {
-        newSearchCenter = { lat: requestLat, lng: requestLng };
-      } else if (searchCenterLat && searchCenterLng) {
-        newSearchCenter = { lat: searchCenterLat, lng: searchCenterLng };
-      } else {
-        newSearchCenter = state.searchCenter; // Fallback to current searchCenter if no new info
-      }
+      // 검색 요청 시 사용한 좌표를 searchCenter로 설정
+      const newSearchCenter = { lat: requestLat, lng: requestLng };
+      
+      console.log('=== SEARCH_SUCCESS: searchCenter 설정 ===');
+      console.log('requestLat:', requestLat);
+      console.log('requestLng:', requestLng);
+      console.log('newSearchCenter:', newSearchCenter);
 
       return {
         ...state,
@@ -189,6 +185,9 @@ export const useSearch = () => {
       // 1. Try 1km
       finalSearchData = await search(1);
       if (finalSearchData.content.length > 0) {
+        console.log('=== performSearch: SEARCH_SUCCESS dispatch ===');
+        console.log('latitude:', latitude);
+        console.log('longitude:', longitude);
         dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
         return;
       }
@@ -196,6 +195,9 @@ export const useSearch = () => {
       // 2. Try 10km
       finalSearchData = await search(10);
       if (finalSearchData.content.length > 0) {
+        console.log('=== performSearch: SEARCH_SUCCESS dispatch (10km) ===');
+        console.log('latitude:', latitude);
+        console.log('longitude:', longitude);
         dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
         return;
       }
@@ -300,11 +302,75 @@ export const useSearch = () => {
     }
   }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers]);
 
+  // 검색어를 직접 전달하는 검색 함수
+  const performSearchWithQuery = useCallback(async (query: string, latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+    if (!query.trim()) {
+      return;
+    }
+
+    dispatch({ type: 'START_SEARCH' });
+
+    try {
+      const search = async (radius: number) => {
+        return await searchPlaces(
+          query,
+          latitude,
+          longitude,
+          radius,
+          state.searchOptions.sort,
+          1,
+          userLatitude,
+          userLongitude,
+          state.searchOptions.forceLocationSearch
+        );
+      };
+
+      let finalSearchData;
+      // 1. Try 1km
+      finalSearchData = await search(1);
+      if (finalSearchData.content.length > 0) {
+        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+        return;
+      }
+
+      // 2. Try 10km
+      finalSearchData = await search(10);
+      if (finalSearchData.content.length > 0) {
+        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+        return;
+      }
+
+      // 3. Try 50km
+      finalSearchData = await search(50);
+      if (finalSearchData.content.length > 0) {
+        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+        return;
+      }
+
+      // 4. Try 100km
+      finalSearchData = await search(100);
+      if (finalSearchData.content.length > 0) {
+        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+        return;
+      }
+
+      // 5. Try 1000km
+      finalSearchData = await search(1000);
+      if (finalSearchData.content.length === 0) {
+        alert("검색 결과가 없습니다.");
+      }
+      dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+
+    } catch (err: any) {
+      console.error('Search error:', err);
+      dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "검색 중 오류가 발생했습니다." });
+    }
+  }, [state.searchOptions]);
+
   const clearSearchResults = () => {
     dispatch({ type: 'CLEAR_SEARCH' });
   };
 
-  console.log("useSearch hook returning state. searchCenter:", state.searchCenter);
 
   return {
     searchQuery: state.searchQuery,
@@ -319,6 +385,7 @@ export const useSearch = () => {
     markerCountReachedLimit: state.markerCountReachedLimit,
     error: state.error,
     performSearch,
+    performSearchWithQuery,
     fetchNextPage,
     fetchAllMarkers,
     clearSearchResults,

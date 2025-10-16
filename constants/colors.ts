@@ -45,6 +45,7 @@ export const COLORS = {
   green: '#28a745',
   yellow: '#ffc107',
   orange: '#FF5722',
+  purple: '#8B5CF6',  // 주차장 마커용 보라색
   gray: '#6c757d',
   lightGray: '#9CA3AF',
   darkGray: '#495057',

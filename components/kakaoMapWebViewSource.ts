@@ -36,12 +36,12 @@ export const kakaoMapWebViewHtml = `<!DOCTYPE html>
           // markerImages 초기화 로직
           markerImages = {
             default: new kakao.maps.MarkerImage(
-              createDotMarkerImage(false),
+              createDotMarkerImage(false, null),
               new kakao.maps.Size(16, 16),
               { offset: new kakao.maps.Point(8, 8) }
             ),
             selected: new kakao.maps.MarkerImage(
-              createDotMarkerImage(true),
+              createDotMarkerImage(true, null),
               new kakao.maps.Size(24, 24),
               { offset: new kakao.maps.Point(12, 12) }
             ),
@@ -93,10 +93,11 @@ function updateMapCenter(lat, lng) {
 
 
 
-      function createDotMarkerImage(isSelected) {
+      function createDotMarkerImage(isSelected, markerColor) {
         const size = isSelected ? 24 : 16;
         const borderWidth = isSelected ? 2 : 1;
-        const fillColor = isSelected ? '#FF385C' : '#007bff';
+        // markerColor가 있으면 사용, 없으면 기본 색상 사용
+        const fillColor = markerColor || (isSelected ? '#FF385C' : '#007bff');
         const borderColor = '#fff';
         const svg = '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg">' +
                     '<circle cx="' + (size / 2) + '" cy="' + (size / 2) + '" r="' + ((size - borderWidth * 2) / 2) + '" fill="' + fillColor + '" stroke="' + borderColor + '" stroke-width="' + borderWidth + '"/>' +
@@ -115,12 +116,12 @@ function updateMapCenter(lat, lng) {
           if (!markerImages) {
             markerImages = {
               default: new kakao.maps.MarkerImage(
-                createDotMarkerImage(false),
+                createDotMarkerImage(false, null),
                 new kakao.maps.Size(16, 16),
                 { offset: new kakao.maps.Point(8, 8) }
               ),
               selected: new kakao.maps.MarkerImage(
-                createDotMarkerImage(true),
+                createDotMarkerImage(true, null),
                 new kakao.maps.Size(24, 24),
                 { offset: new kakao.maps.Point(12, 12) }
               ),
@@ -160,9 +161,17 @@ function updateMapCenter(lat, lng) {
           if (placeMarkersData && placeMarkersData.length > 0) {
             const kakaoMarkers = placeMarkersData.map(markerData => {
               const isSelected = markerData.markerType === 'selected';
+              // 주차장 마커인지 확인하고 색상 결정
+              const isParkingMarker = markerData.markerType === 'parking' || markerData.markerType?.startsWith('parking_');
+              const markerColor = isParkingMarker ? markerData.markerColor : null;
+              
+              const markerImage = createDotMarkerImage(isSelected, markerColor);
+              const imageSize = new kakao.maps.Size(isSelected ? 24 : 16, isSelected ? 24 : 16);
+              const imageOption = { offset: new kakao.maps.Point(imageSize.width / 2, imageSize.height / 2) };
+              
               const marker = new kakao.maps.Marker({
                 position: new kakao.maps.LatLng(markerData.lat, markerData.lng),
-                image: isSelected ? markerImages.selected : markerImages.default,
+                image: new kakao.maps.MarkerImage(markerImage, imageSize, imageOption),
                 zIndex: isSelected ? 100 : 1,
               });
 

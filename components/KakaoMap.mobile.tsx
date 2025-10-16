@@ -114,41 +114,31 @@ const MobileKakaoMap = React.memo(forwardRef<any, KakaoMapProps>(({
 
   // 경로 표시 Effect (모바일 WebView)
   useEffect(() => {
-    if (updateTimeout.current) {
-      clearTimeout(updateTimeout.current);
+    
+    if (webViewRef.current && isMapInitialized) {
+      if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
+        
+        // 경로 표시 스크립트
+        const script = `
+          if (typeof drawRoute === 'function') {
+            drawRoute(${JSON.stringify(routeResult)});
+          } else {
+            console.log('drawRoute 함수가 없습니다');
+          }
+          true;
+        `;
+        webViewRef.current.injectJavaScript(script);
+      } else {
+        // 경로 제거 스크립트
+        const script = `
+          if (typeof clearRoute === 'function') {
+            clearRoute();
+          }
+          true;
+        `;
+        webViewRef.current.injectJavaScript(script);
+      }
     }
-
-    updateTimeout.current = setTimeout(() => {
-      if (webViewRef.current && htmlContent && isMapInitialized) {
-        if (routeResult && routeResult.coordinates && routeResult.coordinates.length > 0) {
-          
-          // 경로 표시 스크립트
-          const script = `
-            if (typeof drawRoute === 'function') {
-              drawRoute(${JSON.stringify(routeResult)});
-            } else {
-            }
-            true;
-          `;
-          webViewRef.current.injectJavaScript(script);
-        } else {
-          // 경로 제거 스크립트
-          const script = `
-            if (typeof clearRoute === 'function') {
-              clearRoute();
-            }
-            true;
-          `;
-          webViewRef.current.injectJavaScript(script);
-        }
-      }
-    }, 200); // 200ms debounce
-
-    return () => {
-      if (updateTimeout.current) {
-        clearTimeout(updateTimeout.current);
-      }
-    };
   }, [routeResult, isMapInitialized]);
 
   // resetMapLevel prop 처리 (모바일 WebView)
@@ -228,11 +218,9 @@ const MobileKakaoMap = React.memo(forwardRef<any, KakaoMapProps>(({
               setIsMapInitialized(true); // initMap 성공 후 초기화 완료로 설정
             }
             if (data.type === 'get_current_map_center_for_search') {
-              console.log('=== WebView에서 메시지 수신 ===');
               console.log('받은 지도 중심:', data.latitude, data.longitude);
               // 현재 지도 중심을 가져와서 검색 함수에 전달
               if ((global as any).handleSearchInAreaWithCurrentCenter) {
-                console.log('전역 함수 호출 시도');
                 (global as any).handleSearchInAreaWithCurrentCenter({
                   latitude: data.latitude,
                   longitude: data.longitude

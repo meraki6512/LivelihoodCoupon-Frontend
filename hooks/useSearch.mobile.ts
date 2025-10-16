@@ -175,14 +175,15 @@ export const useSearch = (): {
         dispatch({ type: 'SET_SEARCH_OPTIONS', payload: options });
     };
 
-    const performSearch = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-        if (!state.searchQuery.trim()) {
+    const performSearch = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number, query?: string) => {
+        const searchQuery = query || state.searchQuery;
+        if (!searchQuery.trim()) {
             alert("검색어를 입력해주세요.");
             return;
         }
         dispatch({ type: 'START_SEARCH' });
         try {
-            const firstPageData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, 1, userLatitude, userLongitude);
+            const firstPageData = await searchPlaces(searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, 1, userLatitude, userLongitude);
             // 검색 결과가 없어도 성공으로 처리 (오류가 아님)
             console.log('=== performSearch (mobile): SEARCH_SUCCESS dispatch ===');
             console.log('latitude:', latitude);

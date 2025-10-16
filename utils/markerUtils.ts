@@ -1,4 +1,5 @@
 import { MARKER_CONFIG, getMarkerConfig } from '../constants/mapConstants';
+import { COLORS } from '../constants/colors';
 
 /**
  * 마커 관리 유틸리티
@@ -215,6 +216,54 @@ export class MarkerDataConverter {
   }
 
   /**
+   * 주차장 결과를 마커 데이터로 변환
+   */
+  static convertParkingLotsToMarkers(
+    parkingLots: any[],
+    selectedParkingId: string | null,
+    userLocation?: { latitude: number; longitude: number }
+  ): any[] {
+    const markers: any[] = [];
+
+    // 현재 위치 마커 추가
+    if (userLocation) {
+      markers.push({
+        placeId: 'user_location',
+        placeName: '내 위치',
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+        categoryGroupName: '내 위치',
+        roadAddress: '현재 위치',
+        lotAddress: '',
+        phone: '',
+        placeUrl: '',
+        markerType: 'userLocation'
+      });
+    }
+
+    // 주차장 마커들 추가
+    parkingLots.forEach(parkingLot => {
+      markers.push({
+        placeId: `parking_${parkingLot.id}`,
+        placeName: parkingLot.parkingLotNm,
+        lat: parkingLot.lat,
+        lng: parkingLot.lng,
+        categoryGroupName: '주차장',
+        roadAddress: parkingLot.roadAddress,
+        lotAddress: parkingLot.lotAddress,
+        phone: parkingLot.phoneNumber || '',
+        placeUrl: '',
+        markerType: `parking_${parkingLot.id}` === selectedParkingId ? 'selected' : 'parking',
+        distance: parkingLot.distance,
+        feeInfo: parkingLot.feeInfo,
+        markerColor: COLORS.purple  // 주차장 마커는 보라색
+      });
+    });
+
+    return markers;
+  }
+
+  /**
    * 마커 데이터를 WebView용으로 변환
    */
   static convertToWebViewFormat(markers: any[]): any[] {
@@ -229,7 +278,9 @@ export class MarkerDataConverter {
       roadAddress: marker.roadAddress,
       lotAddress: marker.lotAddress,
       phone: marker.phone,
-      placeUrl: marker.placeUrl
+      placeUrl: marker.placeUrl,
+      distance: marker.distance,
+      feeInfo: marker.feeInfo
     }));
   }
 }

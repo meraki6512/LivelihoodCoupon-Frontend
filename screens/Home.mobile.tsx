@@ -28,6 +28,13 @@ export default function HomeMobile() {
     const setShowInfoWindow = usePlaceStore((s) => s.setShowInfoWindow);
     const selectedMarkerPosition = usePlaceStore((s) => s.selectedMarkerPosition);
     const setSelectedMarkerPosition = usePlaceStore((s) => s.setSelectedMarkerPosition);
+    
+    // 탭 상태 관리
+    const [activeTab, setActiveTab] = useState<'search' | 'parking'>('search');
+    
+    // activeTab 변경 감지
+    useEffect(() => {
+    }, [activeTab]);
     const setMapCenterToStore = usePlaceStore((s) => s.setMapCenter);
 
     // 현재 위치 및 검색 관련 훅
@@ -60,7 +67,6 @@ export default function HomeMobile() {
         loading: searchLoading,
         error: searchError,
         performSearch,
-        performSearchWithQuery,
         clearSearchResults: clearSearchResultsFromHook,
         searchOptions,
         setSearchOptions,
@@ -154,9 +160,8 @@ export default function HomeMobile() {
 
     // 지도 중심과 검색 중심 비교하여 "현재위치에서 검색" 버튼 표시
     useEffect(() => {
-        // searchCenter가 설정된 후에만 버튼 표시 여부 계산 (가장 중요한 조건)
-        // 장소 상세 설명 바텀시트 상태일 때는 버튼 비활성화
-        if (searchCenter && mapCenter && searchResults && searchResults.length > 0 && (bottomSheetOpen || bottomSheetHeight > 0) && !showPlaceDetail) {
+        // 상세 정보 모드에서도 버튼이 보이도록 수정
+        if (searchCenter && mapCenter && searchResults && searchResults.length > 0 && (bottomSheetOpen || bottomSheetHeight > 0)) {
             const latDiff = Math.abs(mapCenter.latitude - searchCenter.latitude);
             const lngDiff = Math.abs(mapCenter.longitude - searchCenter.longitude);
             const distance = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
@@ -224,6 +229,14 @@ export default function HomeMobile() {
         setBottomSheetOpen(true); // 검색 후 하단 시트 열기
     }, [mapCenter, location, performSearch, setSelectedPlaceId, setShowInfoWindow, setSelectedMarkerPosition]);
 
+
+    const performSearchWithQuery = useCallback(async (query: string, latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+        // 검색어 설정
+        setSearchQuery(query);
+        
+        await performSearch(latitude, longitude, userLatitude, userLongitude, query as any);
+    }, [performSearch, setSearchQuery]);
+
     // 카테고리 검색을 위한 함수
     const handleCategorySearch = useCallback(async (categoryName: string) => {
 
@@ -243,9 +256,6 @@ export default function HomeMobile() {
         const userLatitude = location?.latitude || searchLatitude;
         const userLongitude = location?.longitude || searchLongitude;
 
-
-        // 검색어 설정 (UI 업데이트용)
-        setSearchQuery(categoryName);
 
         // 직접 검색 실행 (검색어를 직접 전달)
         await performSearchWithQuery(categoryName, searchLatitude, searchLongitude, userLatitude, userLongitude);
@@ -408,6 +418,8 @@ export default function HomeMobile() {
                 setShowPlaceDetail={setShowPlaceDetail}
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
                 searchResults={searchResults}
                 allMarkers={allMarkers}
                 isLoading={isLoading}

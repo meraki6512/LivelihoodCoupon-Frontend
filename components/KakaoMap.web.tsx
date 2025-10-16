@@ -931,6 +931,7 @@ return (
             onMapIdle(data.latitude, data.longitude);
           }
           if (data.type === "marker_press" && onMarkerPress) {
+            console.log('🎯 마커 클릭 이벤트:', data.id);
             onMarkerPress(data.id);
           }
           if (data.type === 'map_api_ready') {

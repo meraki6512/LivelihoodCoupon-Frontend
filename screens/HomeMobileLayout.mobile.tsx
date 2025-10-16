@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context'; // Change this import
 import { Ionicons } from '@expo/vector-icons'; // Add this import
+import { API_BASE_URL } from '@env';
 import KakaoMap from "../components/KakaoMap";
 import RouteBottomSheet from "../components/search/RouteBottomSheet";
 import RouteSearchPanel from "../components/search/RouteSearchPanel";
@@ -20,10 +21,12 @@ import RouteResultComponent from "../components/route/RouteResult";
 import { SearchResult, SearchOptions } from "../types/search";
 import { PageResponse } from "../types/api";
 import { RouteResult } from "../types/route";
+import { ParkingLot } from "../types/parking";
 import { mobileStyles } from "./HomeMobileLayout.styles";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CATEGORIES } from "../constants/categories";
 import { useBottomSheetHeight } from "../utils/bottomSheetUtils";
+import { MarkerDataConverter } from "../utils/markerUtils";
 
 interface HomeMobileLayoutProps {
     // Props for HomeMobileLayout
@@ -45,6 +48,8 @@ interface HomeMobileLayoutProps {
     showPlaceDetail: boolean;
     setShowPlaceDetail: (show: boolean) => void;
     searchQuery: string;
+    activeTab: string;
+    setActiveTab: (tab: string) => void;
     setSearchQuery: (query: string) => void;
     searchResults: SearchResult[];
     allMarkers: SearchResult[];
@@ -92,6 +97,8 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                                                                setBottomSheetOpen,
                                                                bottomSheetHeight,
                                                                setBottomSheetHeight,
+                                                               activeTab,
+                                                               setActiveTab,
                                                                showPlaceDetail,
                                                                setShowPlaceDetail,
                                                                searchQuery,
@@ -102,7 +109,6 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                                                                errorMsg,
                                                                onSearch,
                                                                onSelectResult,
-                                                               onMarkerPress,
                                                                searchOptions,
                                                                setSearchOptions,
                                                                loadingNextPage,
@@ -130,6 +136,109 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
 
     // 작은 핸들 높이 상수 (메모이제이션)
     const SMALL_HANDLE_HEIGHT = useMemo(() => 60, []);
+    
+    // 마커 상태 관리
+    const [currentMarkers, setCurrentMarkers] = useState<any[]>([]);
+    
+    
+    // 현재 활성 탭 상태 관리
+    // activeTab과 setActiveTab은 props로 받음
+    
+    // 외부에서 주차장 데이터를 관리할 상태
+    const [externalParkingLots, setExternalParkingLots] = useState<ParkingLot[]>([]);
+    
+    // 마커 업데이트 함수
+    const handleUpdateMarkers = useCallback((newMarkers: any[]) => {
+        setCurrentMarkers(newMarkers);
+    }, []);
+    
+    // 탭 변경 핸들러
+    const handleActiveTabChange = useCallback((tab: 'search' | 'parking') => {
+        setActiveTab(tab);
+    }, []);
+
+    // 주차장 마커 클릭 핸들러
+    const handleParkingLotSelect = useCallback((parkingLot: ParkingLot) => {
+    }, []);
+    
+    // 주차장 검색 함수 (현재 지도 중심 기준)
+    const handleParkingSearchInArea = useCallback(async (mapCenter: { latitude: number; longitude: number }) => {
+        
+        // 주차장 검색 API 호출 (기존 parkingApi 사용)
+        try {
+            const { parkingApi } = await import('../services/parkingApi');
+            
+            const response = await parkingApi.searchNearbyParkingLots({
+                lat: mapCenter.latitude,
+                lng: mapCenter.longitude,
+                radius: 5.0, // 1km -> 5km로 증가
+                page: 1,
+                size: 20
+            });
+            
+            
+            if (response.success) {
+                const parkingLots = response.data.content;
+                
+                // 주차장 데이터를 상태에 저장 (바텀시트에서 사용)
+                setExternalParkingLots(parkingLots);
+                
+                // 주차장 마커 생성 및 업데이트
+                const parkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+                    parkingLots,
+                    null,
+                    location || undefined
+                );
+                handleUpdateMarkers(parkingMarkers);
+            } else {
+                // 빈 주차장 데이터로 업데이트
+                setExternalParkingLots([]);
+                // 빈 마커로 업데이트
+                const emptyMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+                    [],
+                    null,
+                    location || undefined
+                );
+                handleUpdateMarkers(emptyMarkers);
+            }
+        } catch (error) {
+            console.error('🚨 주차장 검색 오류:', error);
+            // 에러 시 빈 주차장 데이터로 업데이트
+            setExternalParkingLots([]);
+            // 에러 시 빈 마커로 업데이트
+            const emptyMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+                [],
+                null,
+                location || undefined
+            );
+            handleUpdateMarkers(emptyMarkers);
+        }
+    }, [location, handleUpdateMarkers]);
+    
+    // 일반 검색 결과 마커 클릭 핸들러
+    const onMarkerPress = useCallback((placeId: string, lat?: number, lng?: number) => {
+        
+        // 검색 결과에서 해당 장소 찾기
+        const selectedResult = allMarkers.find(marker => marker.placeId === placeId);
+        if (selectedResult) {
+            
+            // 선택된 장소 상태 업데이트
+            setSelectedPlaceId(placeId);
+            setSelectedMarkerPosition({ lat: selectedResult.lat, lng: selectedResult.lng });
+            
+            // 선택된 마커 업데이트 (빨간색 표시)
+            const selectedMarkers = MarkerDataConverter.convertSearchResultsToMarkers(
+                allMarkers,
+                placeId,
+                location || undefined
+            );
+            setCurrentMarkers(selectedMarkers);
+            
+            // 장소 상세 정보 표시
+            setShowPlaceDetail(true);
+        } else {
+        }
+    }, [allMarkers, location]);
 
     // 길찾기 모드 상태
     const [isRouteMode, setIsRouteMode] = useState(false);
@@ -149,6 +258,102 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
     const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<string[]>([]);
     const [showAutocomplete, setShowAutocomplete] = useState(false);
     const [selectedSearchResult, setSelectedSearchResult] = useState<SearchResult | null>(null);
+
+    // 초기 마커 설정 (검색 결과가 있을 때만, 탭이 검색 결과일 때만, 길찾기 모드가 아닐 때만)
+    useEffect(() => {
+        
+        // 주차장 탭일 때는 currentMarkers를 건드리지 않음
+        if (activeTab === 'parking') {
+            return;
+        }
+        
+        // 길찾기 모드일 때는 검색 결과 마커를 표시하지 않음
+        if (isRouteMode || showRouteDetail) {
+            setCurrentMarkers([]);
+            return;
+        }
+        
+        if (allMarkers.length > 0 && activeTab === 'search') {
+            const initialMarkers = MarkerDataConverter.convertSearchResultsToMarkers(
+                allMarkers,
+                selectedPlaceId,
+                location || undefined
+            );
+            setCurrentMarkers(initialMarkers);
+        } else if (allMarkers.length === 0 && currentMarkers.length > 0 && activeTab === 'search') {
+            // 검색 결과가 없을 때는 현재 위치 마커만 표시 (검색 결과 탭일 때만)
+            const emptyMarkers = MarkerDataConverter.convertSearchResultsToMarkers(
+                [],
+                null,
+                location || undefined
+            );
+            setCurrentMarkers(emptyMarkers);
+        } else {
+        }
+    }, [allMarkers, selectedPlaceId, location, activeTab, isRouteMode, showRouteDetail]);
+
+    // 홈화면으로 돌아갈 때 모든 마커 초기화
+    useEffect(() => {
+        if (!hasSearched && !isRouteMode) {
+            // 홈화면 상태: 모든 마커 초기화
+            setExternalParkingLots([]);
+            setCurrentMarkers([]);
+            setSelectedPlaceId(null);
+            setSelectedMarkerPosition(null);
+        }
+    }, [hasSearched, isRouteMode]);
+
+    // 바텀시트가 닫힐 때 주차장 마커 초기화
+    useEffect(() => {
+        if (!bottomSheetOpen && activeTab === 'search') {
+            // 바텀시트가 닫히고 검색 결과 탭일 때 주차장 마커 제거
+            setExternalParkingLots([]);
+            // 검색 결과가 있으면 검색 결과 마커, 없으면 현재 위치 마커만 표시
+            if (allMarkers.length > 0) {
+                const searchMarkers = MarkerDataConverter.convertSearchResultsToMarkers(
+                    allMarkers,
+                    selectedPlaceId,
+                    location || undefined
+                );
+                setCurrentMarkers(searchMarkers);
+            } else {
+                const userLocationMarker = MarkerDataConverter.convertSearchResultsToMarkers(
+                    [],
+                    null,
+                    location || undefined
+                );
+                setCurrentMarkers(userLocationMarker);
+            }
+        }
+    }, [bottomSheetOpen, activeTab, allMarkers, selectedPlaceId, location]);
+
+    // 길찾기 모드 진입 시 검색 결과 초기화
+    useEffect(() => {
+        if (isRouteMode) {
+            // 길찾기 모드 진입 시 검색 결과 정리
+            setCurrentMarkers([]);
+            setExternalParkingLots([]);
+            setSelectedPlaceId(null);
+            setSelectedMarkerPosition(null);
+            setHasSearched(false);
+        }
+    }, [isRouteMode]);
+
+    // 홈화면으로 돌아갔을 때 주차장 마커 초기화
+    useEffect(() => {
+        // 검색을 하지 않은 상태이고 주차장 탭이 아닐 때
+        if (!hasSearched && activeTab === 'search') {
+            // 주차장 데이터 초기화
+            setExternalParkingLots([]);
+            // 현재 위치 마커만 표시
+            const userLocationMarker = MarkerDataConverter.convertSearchResultsToMarkers(
+                [],
+                null,
+                location || undefined
+            );
+            setCurrentMarkers(userLocationMarker);
+        }
+    }, [hasSearched, activeTab, location]);
 
     // 디바운싱을 위한 타이머 ref들
     const startLocationTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -251,43 +456,6 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
 
 
 
-    // 뒤로가기 버튼 처리
-    useEffect(() => {
-        const backAction = () => {
-            // 1. 가장 구체적인 상태부터 처리
-            if (showPlaceDetail) {
-                setShowPlaceDetail(false);
-                return true;
-            }
-
-            // 2. 길찾기 모드
-            if (isRouteMode) {
-                handleCloseRouteMode();
-                return true;
-            }
-
-            // 3. 바텀시트 상태 처리
-            if (bottomSheetOpen) {
-                setBottomSheetOpen(false);
-                setBottomSheetHeight(SMALL_HANDLE_HEIGHT);
-                return true;
-            }
-
-            // 4. 바텀시트 완전 종료
-            if (bottomSheetHeight > 0) {
-                setBottomSheetHeight(0);
-                clearSearchResults();
-                setHasSearched(false);
-                setSelectedCategory('');
-                return true;
-            }
-
-            return false;
-        };
-
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-        return () => backHandler.remove();
-    }, [isRouteMode, showPlaceDetail, bottomSheetOpen, bottomSheetHeight, clearSearchResults, SMALL_HANDLE_HEIGHT]);
 
 
 
@@ -369,27 +537,26 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         // 1. 상태 초기화
         resetRouteStates();
 
-        // 2. 외부 리소스 정리 (지도에서 경로 제거)
+        // 2. 검색바 초기화
+        setSearchQuery('');
+        setShowAutocomplete(false);
+        setIsSearchFocused(false);
+
+        // 3. 카테고리 초기화
+        setSelectedCategory('');
+
+        // 4. 외부 리소스 정리 (지도에서 경로 제거)
         if (clearRoute) {
             clearRoute();
         }
 
-        // 3. 길찾기 시각화 제거 (WebView에서 경로 라인 제거)
-        if (webViewRef.current) {
-            const script = `
-        if (typeof clearRoute === 'function') {
-          clearRoute();
-        }
-        // 검색 마커들도 정리
-        if (typeof clearSearchMarkers === 'function') {
-          clearSearchMarkers();
-        }
-        true;
-      `;
-            webViewRef.current.injectJavaScript(script);
-        }
+        // 5. 길찾기 모드 상태 초기화
+        setIsRouteMode(false);
+        setShowRouteDetail(false);
+        setBottomSheetOpen(false);
+        setBottomSheetHeight(SMALL_HANDLE_HEIGHT);
 
-        // 4. 마커 복원 (WebView 업데이트)
+        // 6. 마커 복원 (WebView 업데이트)
         if (webViewRef.current && allMarkers.length > 0) {
             const script = `
         if (typeof updateMarkers === 'function') {
@@ -507,6 +674,8 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
     // Android 뒤로가기 버튼 처리
     useEffect(() => {
         const backAction = () => {
+            // 🔍 상태 로그 출력
+            
             if (isSearchFocused) {
                 // 검색 포커스가 있으면 포커스 해제하고 검색어도 지움
                 setIsSearchFocused(false);
@@ -514,24 +683,56 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 setSearchQuery(''); // 검색어 지우기
                 return true; // 이벤트 처리됨
             }
-            if (hasSearched) {
-                handleCloseSearch();
+            if (showPlaceDetail) {
+                // 장소 상세 정보에서 장소 결과 리스트로 돌아가기
+                setShowPlaceDetail(false);
                 return true; // 이벤트 처리됨
             }
+            if (showRouteDetail) {
+                if (bottomSheetOpen) {
+                    // 바텀시트가 열려있으면 접기
+                    setBottomSheetOpen(false);
+                    setBottomSheetHeight(SMALL_HANDLE_HEIGHT);
+                    return true; // 이벤트 처리됨
+                } else {
+                    // 바텀시트가 접혀있으면 길찾기 일반 모드로 복귀
+                    setShowRouteDetail(false);
+                    setIsRouteMode(true);
+                    return true; // 이벤트 처리됨
+                }
+            }
             if (isRouteMode) {
+                // 길찾기 일반 모드에서 홈화면으로 바로 이동
                 handleCloseRouteMode();
                 return true; // 이벤트 처리됨
+            }
+            if (hasSearched && !isRouteMode) {
+                // 검색 결과가 있을 때 (길찾기 모드가 아닐 때만)
+                if (bottomSheetOpen) {
+                    // 바텀시트가 열려있으면 접기
+                    setBottomSheetOpen(false);
+                    setBottomSheetHeight(SMALL_HANDLE_HEIGHT);
+                    return true; // 이벤트 처리됨
+                } else {
+                    // 바텀시트가 접혀있으면 홈화면으로 복귀
+                    handleCloseSearch();
+                    return true; // 이벤트 처리됨
+                }
             }
             return false; // 기본 뒤로가기 동작
         };
 
         const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
         return () => backHandler.remove();
-    }, [isSearchFocused, hasSearched, isRouteMode]);
+    }, [isSearchFocused, showPlaceDetail, hasSearched, isRouteMode, showRouteDetail, bottomSheetOpen]);
 
     // 검색 실행 함수 (UI 상태만 관리)
     const handleSearch = async () => {
         setHasSearched(true);
+
+        // 키워드 검색 시 주차장 상태 초기화
+        setExternalParkingLots([]);
+        setActiveTab('search');
 
         // 길찾기 모드가 아닐 때만 바텀시트 열기
         if (!isRouteMode) {
@@ -553,6 +754,12 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         setShowAutocomplete(false);
         setSelectedSearchResult(null); // 선택된 결과 초기화
         setBottomSheetOpen(false); // 검색 닫을 때 바텀시트도 닫기
+        
+        // 주차장 관련 상태 초기화
+        setExternalParkingLots([]);
+        setCurrentMarkers([]);
+        setSelectedPlaceId(null);
+        setSelectedMarkerPosition(null);
     };
 
     const handleStartLocationSearch = async () => {
@@ -775,98 +982,34 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
         setEndLocationResults([]);
     };
 
-    const handleStartRoute = useCallback(() => {
-        if (!endLocation) {
-            return;
-        }
+    // 출발지와 목적지가 모두 설정되면 자동으로 길찾기 실행 (중복 실행 방지)
+    const prevRouteParams = useRef<{
+        startLocation: string;
+        endLocation: string;
+        selectedTransportMode: string;
+    } | null>(null);
 
-        // 출발지가 비어있으면 "내 위치"로 처리
-        const startLocationData = (!startLocation || startLocation === '내 위치') ? {
-            placeId: 'current_location',
-            placeName: '내 위치',
-            lat: location?.latitude || 0,
-            lng: location?.longitude || 0,
-            roadAddress: '현재 위치',
-            lotAddress: '',
-            phone: '',
-            categoryGroupName: '내 위치',
-            placeUrl: '',
-            distance: 0,
-            roadAddressDong: ''
-        } : startLocationResults.find(r => r.placeName === startLocation) ||
-            (selectedStartLocation && selectedStartLocation.placeName === startLocation ? selectedStartLocation : null);
-
-        // endLocationResults에서 찾거나, 저장된 selectedEndLocation 사용
-        const endLocationData = (!endLocation || endLocation === '내 위치') ? {
-            placeId: 'current_location',
-            placeName: '내 위치',
-            lat: location?.latitude || 0,
-            lng: location?.longitude || 0,
-            roadAddress: '현재 위치',
-            lotAddress: '',
-            phone: '',
-            categoryGroupName: '내 위치',
-            placeUrl: '',
-            distance: 0,
-            roadAddressDong: ''
-        } : endLocationResults.find(r => r.placeName === endLocation) ||
-            (selectedEndLocation && selectedEndLocation.placeName === endLocation ? selectedEndLocation : null);
-
-
-        if (startLocationData && endLocationData && startRoute) {
-            // 거리 계산 (대략적인 직선 거리)
-            const distance = Math.sqrt(
-                Math.pow(endLocationData.lat - startLocationData.lat, 2) +
-                Math.pow(endLocationData.lng - startLocationData.lng, 2)
-            ) * 111000; // 대략적인 미터 단위 변환
-
-            // 자동차로 가기에 너무 가까운 거리 (150m 이하)인 경우 도보로 자동 전환
-            if (selectedTransportMode === 'driving' && distance < 150) {
-                Alert.alert(
-                    '교통수단 자동 변경',
-                    '자동차로 가기에 너무 가까운 거리입니다.\n도보로 길찾기를 진행합니다.',
-                    [{ text: '확인', style: 'default' }]
-                );
-                // 교통수단을 도보로 변경
-                setSelectedTransportMode('walking');
-
-                startRoute({
-                    startLocation: startLocationData,
-                    endLocation: endLocationData,
-                    transportMode: 'walking' as any,
-                    userLocation: location
-                });
-            } else {
-                startRoute({
-                    startLocation: startLocationData,
-                    endLocation: endLocationData,
-                    transportMode: selectedTransportMode as any,
-                    userLocation: location
-                });
-            }
-        }
-    }, [startLocation, endLocation, location, startLocationResults, selectedStartLocation, endLocationResults, selectedEndLocation, selectedTransportMode, startRoute]);
-
-    // 자동 길찾기 실행을 위한 ref (무한 루프 방지)
-    const autoRouteExecutedRef = useRef(false);
-    const lastRouteParamsRef = useRef<string>('');
-
-    // 출발지와 목적지가 모두 설정되면 자동으로 길찾기 실행 (무한 루프 방지)
     useEffect(() => {
         // 출발지와 목적지가 모두 설정되어 있고, 둘 다 유효한 데이터일 때만 실행
         if (startLocation && endLocation &&
             (selectedStartLocation || startLocation === '내 위치') &&
             (selectedEndLocation || endLocation === '내 위치')) {
 
-            // 현재 파라미터 조합 생성 (무한 루프 방지용)
-            const currentParams = `${startLocation}-${endLocation}-${selectedTransportMode}`;
-            
-            // 이전과 동일한 파라미터면 실행하지 않음 (무한 루프 방지)
-            if (lastRouteParamsRef.current === currentParams) {
+            // 이전 파라미터와 비교하여 중복 실행 방지
+            const currentParams = {
+                startLocation,
+                endLocation,
+                selectedTransportMode
+            };
+
+            if (prevRouteParams.current &&
+                prevRouteParams.current.startLocation === currentParams.startLocation &&
+                prevRouteParams.current.endLocation === currentParams.endLocation &&
+                prevRouteParams.current.selectedTransportMode === currentParams.selectedTransportMode) {
                 return;
             }
-            
-            lastRouteParamsRef.current = currentParams;
+
+            prevRouteParams.current = currentParams;
 
             // selectedStartLocation과 selectedEndLocation을 우선적으로 사용
             const finalStartData = selectedStartLocation;
@@ -923,159 +1066,81 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 }
 
                 // 정상적인 경우에만 길찾기 실행
-                if (startRoute) {
-                    startRoute({
-                        startLocation: finalStartDataWithCurrentLocation,
-                        endLocation: finalEndDataWithCurrentLocation,
-                        transportMode: selectedTransportMode as any,
-                        userLocation: location
-                    });
-                }
+                handleStartRoute();
             }
         }
-    }, [selectedStartLocation, selectedEndLocation, selectedTransportMode, startLocation, endLocation, location, startRoute]);
+    }, [selectedStartLocation, selectedEndLocation, selectedTransportMode, startLocation, endLocation, location]);
 
-    // 하드웨어 뒤로가기 버튼 처리
-    useEffect(() => {
-        const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
-            if (showRouteDetail) {
-                if (bottomSheetOpen) {
-                    setBottomSheetOpen(false);
-                    setBottomSheetHeight(SMALL_HANDLE_HEIGHT);
-                    return true;
-                } else {
-                    setShowRouteDetail(false);
-                    setIsRouteMode(true); // 길찾기 모드로 돌아가기
-                    return true;
-                }
+    const handleStartRoute = useCallback(() => {
+        if (!endLocation) {
+            return;
+        }
+
+        // 출발지가 비어있으면 "내 위치"로 처리
+        const startLocationData = (!startLocation || startLocation === '내 위치') ? {
+            placeId: 'current_location',
+            placeName: '내 위치',
+            lat: location?.latitude || 0,
+            lng: location?.longitude || 0,
+            roadAddress: '현재 위치',
+            lotAddress: '',
+            phone: '',
+            categoryGroupName: '내 위치',
+            placeUrl: '',
+            distance: 0,
+            roadAddressDong: ''
+        } : startLocationResults.find(r => r.placeName === startLocation) ||
+            (selectedStartLocation && selectedStartLocation.placeName === startLocation ? selectedStartLocation : null);
+
+        // endLocationResults에서 찾거나, 저장된 selectedEndLocation 사용
+        const endLocationData = (!endLocation || endLocation === '내 위치') ? {
+            placeId: 'current_location',
+            placeName: '내 위치',
+            lat: location?.latitude || 0,
+            lng: location?.longitude || 0,
+            roadAddress: '현재 위치',
+            lotAddress: '',
+            phone: '',
+            categoryGroupName: '내 위치',
+            placeUrl: '',
+            distance: 0,
+            roadAddressDong: ''
+        } : endLocationResults.find(r => r.placeName === endLocation) ||
+            (selectedEndLocation && selectedEndLocation.placeName === endLocation ? selectedEndLocation : null);
+
+        if (startLocationData && endLocationData && startRoute) {
+            // 거리 계산 (대략적인 직선 거리)
+            const distance = Math.sqrt(
+                Math.pow(endLocationData.lat - startLocationData.lat, 2) +
+                Math.pow(endLocationData.lng - startLocationData.lng, 2)
+            ) * 111000; // 대략적인 미터 단위 변환
+
+            // 자동차로 가기에 너무 가까운 거리 (150m 이하)인 경우 도보로 자동 전환
+            if (selectedTransportMode === 'driving' && distance < 150) {
+                Alert.alert(
+                    '교통수단 자동 변경',
+                    '자동차로 가기에 너무 가까운 거리입니다.\n도보로 길찾기를 진행합니다.',
+                    [{ text: '확인', style: 'default' }]
+                );
+                // 교통수단을 도보로 변경
+                setSelectedTransportMode('walking');
+
+                startRoute({
+                    startLocation: startLocationData,
+                    endLocation: endLocationData,
+                    transportMode: 'walking' as any,
+                    userLocation: location
+                });
+            } else {
+                startRoute({
+                    startLocation: startLocationData,
+                    endLocation: endLocationData,
+                    transportMode: selectedTransportMode as any,
+                    userLocation: location
+                });
             }
-            if (isRouteMode) {
-                // 길찾기 모드 -> 홈화면으로 돌아가기 (무조건)
-
-                // 길찾기 결과 시각화 제거
-                if (webViewRef.current) {
-                    const script = `
-            if (typeof clearRoute === 'function') {
-              clearRoute();
-            }
-            true;
-          `;
-                    webViewRef.current.injectJavaScript(script);
-                }
-
-                // 검색 결과 마커들 제거
-                if (webViewRef.current && allMarkers.length > 0) {
-                    const script = `
-            if (typeof clearSearchMarkers === 'function') {
-              clearSearchMarkers();
-            }
-            true;
-          `;
-                    webViewRef.current.injectJavaScript(script);
-                }
-
-                // 길찾기 상태 초기화 (clearRoute 함수 호출)
-                if (clearRoute) {
-                    clearRoute();
-                }
-
-                // 상태 초기화 - 바텀시트 완전히 제거
-                setIsRouteMode(false);
-                setBottomSheetHeight(0);
-                setBottomSheetOpen(false);
-                setShowPlaceDetail(false);
-                setShowRouteDetail(false);
-                setSelectedCategory('');
-                setHasSearched(false);
-                clearSearchResults();
-
-                // 길찾기 모드 관련 상태 초기화 (X버튼과 동일한 초기화)
-                setStartLocation('내 위치');
-                setEndLocation('');
-                setStartLocationResults([]);
-                setEndLocationResults([]);
-                setSelectedEndLocation(null);
-                setSelectedStartLocation(null);
-                setStartLocationSearching(false);
-                setEndLocationSearching(false);
-
-                // 강제로 바텀시트 완전 제거
-                setTimeout(() => {
-                    setBottomSheetHeight(0);
-                    setBottomSheetOpen(false);
-                }, 100);
-
-                return true;
-            }
-            if (showPlaceDetail) {
-                setShowPlaceDetail(false);
-                return true;
-            }
-
-            // 바텀시트가 접혀있을 때 홈화면으로 돌아가기
-            if (!bottomSheetOpen && bottomSheetHeight > 0 && bottomSheetHeight <= SMALL_HANDLE_HEIGHT) {
-
-                // 길찾기 결과 시각화 제거 (길찾기 모드에서 온 경우)
-                if (webViewRef.current) {
-                    const script = `
-            if (typeof clearRoute === 'function') {
-              clearRoute();
-            }
-            true;
-          `;
-                    webViewRef.current.injectJavaScript(script);
-                }
-
-                // 검색 결과 마커들 제거
-                if (webViewRef.current && allMarkers.length > 0) {
-                    const script = `
-            if (typeof clearSearchMarkers === 'function') {
-              clearSearchMarkers();
-            }
-            true;
-          `;
-                    webViewRef.current.injectJavaScript(script);
-                }
-
-                // 길찾기 상태 초기화 (clearRoute 함수 호출)
-                if (clearRoute) {
-                    clearRoute();
-                }
-
-                // 상태 초기화 - 바텀시트 완전히 제거
-                setBottomSheetHeight(0);
-                setBottomSheetOpen(false);
-                setShowPlaceDetail(false);
-                setShowRouteDetail(false);
-                setIsRouteMode(false);
-                setSelectedCategory('');
-                setHasSearched(false);
-                clearSearchResults();
-
-                // 길찾기 모드 관련 상태 초기화 (X버튼과 동일한 초기화)
-                setStartLocation('내 위치');
-                setEndLocation('');
-                setStartLocationResults([]);
-                setEndLocationResults([]);
-                setSelectedEndLocation(null);
-                setSelectedStartLocation(null);
-                setStartLocationSearching(false);
-                setEndLocationSearching(false);
-
-                // 강제로 바텀시트 완전 제거
-                setTimeout(() => {
-                    setBottomSheetHeight(0);
-                    setBottomSheetOpen(false);
-                }, 100);
-
-                return true;
-            }
-
-            return false;
-        });
-
-        return () => backHandler.remove();
-    }, [showRouteDetail, showPlaceDetail, setShowPlaceDetail, bottomSheetOpen, isRouteMode, bottomSheetHeight, allMarkers, clearSearchResults]);
+        }
+    }, [startLocation, endLocation, location, startLocationResults, selectedStartLocation, endLocationResults, selectedEndLocation, selectedTransportMode, startRoute]);
 
 
 
@@ -1131,6 +1196,8 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 <FloatingSearchBar
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
                     onSearch={handleSearch}
                     onRoutePress={handleRoutePress}
                     selectedCategory={selectedCategory}
@@ -1141,6 +1208,10 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                             setSelectedCategory(categoryId);
                             setHasSearched(true);
 
+                            // 카테고리 검색 시 주차장 상태 초기화
+                            setExternalParkingLots([]);
+                            setActiveTab('search');
+                            
                             // 카테고리 검색 실행
                             await handleCategorySearch(category.name);
                         }
@@ -1291,6 +1362,16 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                     showPlaceDetail={false}
                     setShowPlaceDetail={() => {}}
                     onRoutePress={handleRoutePress}
+                    // 주차장 관련 props 추가
+                    onUpdateMarkers={handleUpdateMarkers}
+                    onSelectParkingLot={(parkingLot) => {
+                    }}
+                    onActiveTabChange={handleActiveTabChange}
+                    externalParkingLots={externalParkingLots}
+                    onParkingLotSelect={handleParkingLotSelect}
+                    onMapCenterChange={(center) => {
+                        setMapCenter(center);
+                    }}
                 />
             )}
 
@@ -1326,6 +1407,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                     searchResults={searchResults}
                     searchQuery={searchQuery}
                     onSearchQueryChange={setSearchQuery}
+                    activeTab={activeTab as "search" | "parking" | undefined}
                     onSearch={handleSearch}
                     isLoading={isLoading}
                     onCloseSearch={handleCloseSearch}
@@ -1335,6 +1417,17 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                     setShowPlaceDetail={setShowPlaceDetail}
                     selectedPlaceId={selectedPlaceId}
                     onRoutePress={handleRoutePress}
+                    // 주차장 관련 props 추가
+                    onUpdateMarkers={handleUpdateMarkers}
+                    onSelectParkingLot={(parkingLot) => {
+                        // 주차장 선택 시 처리 - RouteBottomSheet에서 처리됨
+                    }}
+                    onActiveTabChange={handleActiveTabChange}
+                    externalParkingLots={externalParkingLots}
+                    onParkingLotSelect={handleParkingLotSelect}
+                    onMapCenterChange={(center) => {
+                        setMapCenter(center);
+                    }}
                     onSetStartLocation={(location) => {
                         if (typeof location === 'string') {
                             setStartLocation(location);
@@ -1367,10 +1460,96 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                 latitude={mapCenter?.latitude ?? 37.5665}
                 longitude={mapCenter?.longitude ?? 126.9780}
                 style={[mobileStyles.mapFullScreen, { zIndex: 1001 }] as any}
-                markers={isRouteMode || showRouteDetail || (!bottomSheetOpen && bottomSheetHeight === 0) ? [] : markers}
-                routeResult={isRouteMode || showRouteDetail ? routeResult : null}
+                markers={(() => {
+                    return currentMarkers;
+                })()}
+                routeResult={(() => {
+                    return routeResult;
+                })()}
                 onMapIdle={onMapIdle}
-                onMarkerPress={(id, lat, lng) => id && onMarkerPress(id, lat, lng)}
+                onMarkerPress={(id, lat, lng) => {
+                    if (id) {
+                        // 주차장 마커인지 확인
+                        if (id.startsWith('parking_')) {
+                            // 주차장 ID에서 실제 주차장 ID 추출
+                            const parkingId = parseInt(id.replace('parking_', ''));
+                            // 주차장 데이터 찾기 (externalParkingLots와 currentMarkers 모두 확인)
+                            let parkingLot = externalParkingLots.find(p => p.id === parkingId);
+                            
+                            // externalParkingLots에서 찾지 못했다면 currentMarkers에서 찾기
+                            if (!parkingLot) {
+                                const parkingMarker = currentMarkers.find(m => m.placeId === id);
+                                if (parkingMarker) {
+                                    // 마커 데이터에서 주차장 정보 추출
+                                    parkingLot = {
+                                        id: parkingId,
+                                        parkingLotNm: parkingMarker.placeName,
+                                        lat: parkingMarker.lat,
+                                        lng: parkingMarker.lng,
+                                        roadAddress: parkingMarker.roadAddress || '',
+                                        lotAddress: parkingMarker.lotAddress || '',
+                                        parkingChargeInfo: parkingMarker.feeInfo || '',
+                                        distance: parkingMarker.distance || 0
+                                    };
+                                } else {
+                                    // 전역 함수를 통해 데이터 요청
+                                    if ((global as any).handleParkingLotSelect) {
+                                        const tempParkingLot = { id: parkingId } as any;
+                                        (global as any).handleParkingLotSelect(tempParkingLot);
+                                    }
+                                    return;
+                                }
+                            }
+                            if (parkingLot) {
+                                // 선택된 주차장 상태 업데이트
+                                setSelectedPlaceId(id);
+                                setSelectedMarkerPosition({ lat: parkingLot.lat, lng: parkingLot.lng });
+                                
+                                // 지도 중심을 주차장 위치로 이동 (스크린 높이의 15% 정도 더 아래로)
+                                const latitudeOffset = (SCREEN_HEIGHT * 0.15) / 111000; // 대략적인 위도 오프셋 계산
+                                setMapCenter({ 
+                                    latitude: parkingLot.lat - latitudeOffset, 
+                                    longitude: parkingLot.lng 
+                                });
+                                
+                                // 선택된 주차장 마커 업데이트 (빨간색 표시)
+                                const selectedParkingId = `parking_${parkingLot.id}`;
+                                // currentMarkers에서 주차장 데이터 추출
+                                const parkingLotsFromMarkers = currentMarkers
+                                    .filter(m => m.placeId.startsWith('parking_'))
+                                    .map(m => ({
+                                        id: parseInt(m.placeId.replace('parking_', '')),
+                                        parkingLotNm: m.placeName,
+                                        lat: m.lat,
+                                        lng: m.lng,
+                                        roadAddress: m.roadAddress || '',
+                                        lotAddress: m.lotAddress || '',
+                                        parkingChargeInfo: m.feeInfo || '',
+                                        distance: m.distance || 0
+                                    }));
+                                
+                                const parkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+                                    parkingLotsFromMarkers,
+                                    selectedParkingId,
+                                    location || undefined
+                                );
+                                handleUpdateMarkers(parkingMarkers);
+                                
+                                // 주차장 상세 정보 표시를 위한 전역 함수 호출
+                                if ((global as any).handleParkingLotSelect) {
+                                    (global as any).handleParkingLotSelect(parkingLot);
+                                } else {
+                                    console.log('전역 함수 없음');
+                                }
+                            } else {
+                                console.log('주차장 데이터 없음');
+                            }
+                        } else {
+                            // 일반 검색 결과 마커
+                            onMarkerPress(id, lat, lng);
+                        }
+                    }
+                }}
                 showInfoWindow={showInfoWindow}
                 selectedPlaceId={selectedPlaceId || undefined}
                 selectedMarkerLat={selectedMarkerPosition?.lat}
@@ -1397,7 +1576,7 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                     webViewRef.current.injectJavaScript(script);
                 }}
             />
-            {showSearchInAreaButton && !showRouteDetail && !isRouteMode && (
+            {showSearchInAreaButton && !showRouteDetail && !isRouteMode && hasSearched && (
                 <>
                     <TouchableOpacity
                         style={[
@@ -1413,17 +1592,24 @@ const MobileHomeMobileLayout: React.FC<HomeMobileLayoutProps> = ({
                         onPress={() => {
                             // 현재 mapCenter state를 사용하여 검색 실행
                             if (mapCenter) {
-                                // 전역 함수 호출
-                                if ((global as any).handleSearchInAreaWithCurrentCenter) {
-                                    (global as any).handleSearchInAreaWithCurrentCenter({
-                                        latitude: mapCenter.latitude,
-                                        longitude: mapCenter.longitude
-                                    });
+                                if (activeTab === 'search') {
+                                    // 검색 결과 탭: 기존 검색 로직 실행
+                                    if ((global as any).handleSearchInAreaWithCurrentCenter) {
+                                        (global as any).handleSearchInAreaWithCurrentCenter({
+                                            latitude: mapCenter.latitude,
+                                            longitude: mapCenter.longitude
+                                        });
+                                    }
+                                } else if (activeTab === 'parking') {
+                                    // 주차장 탭: 주차장 검색 실행
+                                    handleParkingSearchInArea(mapCenter);
                                 }
                             }
                         }}
                     >
-                        <Text style={mobileStyles.searchInAreaButtonText}>현재 지도에서 검색</Text>
+                        <Text style={mobileStyles.searchInAreaButtonText}>
+                            {activeTab === 'search' ? '현재 지도에서 검색' : '현재 지도에서 주차장 검색'}
+                        </Text>
                     </TouchableOpacity>
                 </>
             )}

@@ -15,6 +15,8 @@ import { CATEGORIES } from '../../constants/categories';
 interface FloatingSearchBarProps {
     searchQuery: string;
     setSearchQuery: (query: string) => void;
+    activeTab: string;
+    setActiveTab: (tab: string) => void;
     onSearch: () => void;
     onRoutePress: () => void;
     selectedCategory: string;
@@ -31,6 +33,8 @@ interface FloatingSearchBarProps {
 const FloatingSearchBar: React.FC<FloatingSearchBarProps> = ({
                                                                  searchQuery,
                                                                  setSearchQuery,
+                                                                 activeTab,
+                                                                 setActiveTab,
                                                                  onSearch,
                                                                  onRoutePress,
                                                                  selectedCategory,

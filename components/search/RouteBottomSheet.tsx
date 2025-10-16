@@ -12,15 +12,19 @@ import {
   Platform,
   Alert,
   Linking,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SearchResult } from '../../types/search';
 import { RouteResult } from '../../types/route';
+import { ParkingLot, ParkingLotDetail } from '../../types/parking';
 import { useCurrentLocation } from '../../hooks/useCurrentLocation';
+import { useParking } from '../../hooks/useParking';
 import { COLORS } from '../../constants/colors';
 import { SIZES } from '../../constants/sizes';
 import { useBottomSheetHeight } from '../../utils/bottomSheetUtils';
+import { MarkerDataConverter } from '../../utils/markerUtils';
 import RouteResultComponent from '../route/RouteResult';
 
 interface RouteBottomSheetProps {
@@ -52,6 +56,14 @@ interface RouteBottomSheetProps {
   onSetStartLocation?: (location: string | SearchResult) => void;
   onSetEndLocation?: (location: string | SearchResult) => void;
   isRouteDetailMode?: boolean;
+  // 주차장 관련 props
+  activeTab?: 'search' | 'parking';
+  onUpdateMarkers?: (markers: any[]) => void;
+  onSelectParkingLot?: (parkingLot: ParkingLot) => void;
+  onActiveTabChange?: (tab: 'search' | 'parking') => void;
+  externalParkingLots?: ParkingLot[]; // 외부에서 주차장 데이터를 전달받을 수 있는 prop
+  onParkingLotSelect?: (parkingLot: ParkingLot) => void; // 주차장 마커 클릭 시 호출되는 콜백
+  onMapCenterChange?: (center: { latitude: number; longitude: number }) => void; // 지도 중심 변경
 }
 
 const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
@@ -83,6 +95,13 @@ const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
   onSetStartLocation,
   onSetEndLocation,
   isRouteDetailMode = false,
+  activeTab: propActiveTab,
+  onUpdateMarkers,
+  onSelectParkingLot,
+  onActiveTabChange,
+  externalParkingLots,
+  onParkingLotSelect,
+  onMapCenterChange,
 }) => {
   const { height: SCREEN_HEIGHT } = Dimensions.get('window');
   const insets = useSafeAreaInsets();
@@ -94,6 +113,51 @@ const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
   const routeScrollViewRef = useRef<ScrollView>(null);
   
   const { location } = useCurrentLocation();
+  // 주차장 검색 완료 후 마커 업데이트 콜백
+  const handleParkingSearchComplete = useCallback((parkingLots: ParkingLot[]) => {
+    if (onUpdateMarkers) {
+      if (parkingLots.length > 0) {
+        const parkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+          parkingLots,
+          null,
+          location || undefined
+        );
+        onUpdateMarkers(parkingMarkers);
+      } else {
+        // 주차장 결과가 없을 때는 현재 위치 마커만 표시
+        const emptyParkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+          [],
+          null,
+          location || undefined
+        );
+        onUpdateMarkers(emptyParkingMarkers);
+      }
+    }
+  }, [onUpdateMarkers, location]);
+
+  // 외부에서 전달받은 주차장 데이터가 변경될 때 상태 업데이트
+  useEffect(() => {
+    if (externalParkingLots && externalParkingLots.length > 0) {
+      setParkingLots(externalParkingLots);
+      // 주차장 탭으로 자동 전환
+      setActiveSearchTab('parking');
+    }
+  }, [externalParkingLots]);
+
+  // 바텀시트가 완전히 닫힐 때 주차장 상태 초기화는 상위 컴포넌트에서 처리
+  // (hasSearched가 false가 될 때만 마커 초기화)
+
+
+  const { 
+    parkingLots, 
+    selectedParkingLot, 
+    isLoading: parkingLoading, 
+    error: parkingError,
+    searchNearbyParkingLots,
+    getParkingLotDetail,
+    clearParkingLots,
+    setParkingLots
+  } = useParking(handleParkingSearchComplete);
   
   
   // 길찾기 관련 상태
@@ -103,6 +167,65 @@ const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
   const [endLocationResults, setEndLocationResults] = useState<SearchResult[]>([]);
   const [showStartResults, setShowStartResults] = useState(false);
   const [showEndResults, setShowEndResults] = useState(false);
+  
+  // 탭 상태 관리
+  const [activeSearchTab, setActiveSearchTab] = useState<'search' | 'parking'>('search');
+  
+  // propActiveTab과 동기화
+  useEffect(() => {
+    if (propActiveTab && propActiveTab !== activeSearchTab) {
+      setActiveSearchTab(propActiveTab);
+    }
+  }, [propActiveTab, activeSearchTab]);
+  
+  // 주차장 상세 정보 상태
+  const [showParkingDetail, setShowParkingDetail] = useState(false);
+  
+  // 하드웨어 뒤로 가기 버튼 처리
+  useEffect(() => {
+    const backAction = () => {
+      if (showParkingDetail) {
+        // 주차장 상세 정보가 표시 중이면 주차장 목록으로 돌아가기
+        setShowParkingDetail(false);
+        return true; // 이벤트 처리 완료
+      }
+      return false; // 기본 동작 수행 (상위 컴포넌트에서 처리)
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [showParkingDetail]);
+
+  // 주차장 마커 클릭 핸들러를 useCallback으로 메모이제이션
+  const handleParkingLotSelect = useCallback((parkingLot: ParkingLot) => {
+    
+    // parkingLots에서 실제 주차장 데이터 찾기 (최신 상태 사용)
+    let actualParkingLot = parkingLots.find(p => p.id === parkingLot.id);
+    if (!actualParkingLot) {
+      // parkingLots에서 찾지 못했지만 전달받은 parkingLot 데이터 사용
+      actualParkingLot = parkingLot;
+    }
+    
+    // 마커 업데이트는 HomeMobileLayout에서 이미 처리됨
+    // 여기서는 상세 정보 표시만 처리
+    
+    // 주차장 상세 정보 조회
+    getParkingLotDetail(actualParkingLot.id);
+    // 주차장 탭으로 전환
+    setActiveSearchTab('parking');
+    // 상세 정보 표시
+    setShowParkingDetail(true);
+  }, [location, onUpdateMarkers, getParkingLotDetail, parkingLots]);
+
+  // 전역 함수 등록 (한 번만 실행)
+  const isRegistered = useRef(false);
+  useEffect(() => {
+    if (onParkingLotSelect && !isRegistered.current) {
+      (global as any).handleParkingLotSelect = handleParkingLotSelect;
+      isRegistered.current = true;
+    }
+  }, [onParkingLotSelect, handleParkingLotSelect]);
   
   const showPlaceDetail = propShowPlaceDetail || false;
   
@@ -198,6 +321,101 @@ const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
       setShowEndResults(true);
     }
   };
+
+  // 주차장 검색
+  const handleParkingSearch = useCallback(async () => {
+    if (!location) {
+      Alert.alert('알림', '현재 위치를 가져올 수 없습니다.');
+      return;
+    }
+
+    await searchNearbyParkingLots({
+      lat: location.latitude,
+      lng: location.longitude,
+      radius: 5.0, // 5km 반경으로 증가
+      page: 1,
+      size: 20,
+    });
+  }, [location, searchNearbyParkingLots]);
+
+  // 주차장 상세 정보 조회
+  const handleParkingDetail = useCallback(async (parkingLot: ParkingLot) => {
+    await getParkingLotDetail(parkingLot.id);
+    setShowParkingDetail(true);
+  }, [getParkingLotDetail]);
+
+  // 탭 전환 시 마커 업데이트
+  const handleTabChange = useCallback((tab: 'search' | 'parking') => {
+    setActiveSearchTab(tab);
+    
+    // 상위 컴포넌트에 탭 변경 알림
+    if (onActiveTabChange) {
+      onActiveTabChange(tab);
+    }
+    
+    if (onUpdateMarkers) {
+      if (tab === 'search') {
+        // 검색 결과 마커로 전환 - 주차장 마커 제거
+        const searchMarkers = MarkerDataConverter.convertSearchResultsToMarkers(
+          allMarkers,
+          selectedPlaceId || null,
+          location || undefined
+        );
+        onUpdateMarkers(searchMarkers);
+      } else if (tab === 'parking') {
+        // 주차장 마커로 전환
+        if (parkingLots.length > 0) {
+          const parkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+            parkingLots,
+            null, // 선택된 주차장 ID (필요시 추가)
+            location || undefined
+          );
+          onUpdateMarkers(parkingMarkers);
+        } else {
+          // 주차장 결과가 없을 때는 현재 위치 마커만 표시
+          const emptyParkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+            [],
+            null,
+            location || undefined
+          );
+          onUpdateMarkers(emptyParkingMarkers);
+        }
+      }
+    }
+  }, [onUpdateMarkers, allMarkers, selectedPlaceId, location, parkingLots]);
+
+  // 주차장 선택 시 마커 업데이트
+  const handleParkingSelect = useCallback((parkingLot: ParkingLot) => {
+
+    if (onSelectParkingLot) {
+      onSelectParkingLot(parkingLot);
+    }
+    
+    // 선택된 주차장 마커 업데이트
+    const selectedParkingId = `parking_${parkingLot.id}`;
+    
+    const parkingMarkers = MarkerDataConverter.convertParkingLotsToMarkers(
+      parkingLots,
+      selectedParkingId,
+      location || undefined
+    );
+    
+    if (onUpdateMarkers) {
+      onUpdateMarkers(parkingMarkers);
+    } else {
+    }
+    
+    // 지도 중심을 주차장 위치로 이동 (스크린 높이의 15% 정도 더 아래로)
+    const latitudeOffset = (SCREEN_HEIGHT * 0.15) / 111000; // 대략적인 위도 오프셋 계산
+    if (onMapCenterChange) {
+      onMapCenterChange({ 
+        latitude: parkingLot.lat - latitudeOffset, 
+        longitude: parkingLot.lng 
+      });
+    }
+    
+    handleParkingDetail(parkingLot);
+  }, [onSelectParkingLot, handleParkingDetail, parkingLots, location, onUpdateMarkers, onMapCenterChange]);
 
   
   // 검색 모드가 아닐 때는 바텀시트를 완전히 숨김
@@ -360,67 +578,255 @@ const RouteBottomSheet: React.FC<RouteBottomSheetProps> = ({
                 </View>
               )}
             </View>
+          ) : showParkingDetail ? (
+            // 주차장 상세 정보 표시
+            <View style={styles.placeDetailContent}>
+              {selectedParkingLot && (
+                <View style={styles.placeDetailInfo}>
+                  
+                  {/* 주차장명 */}
+                  <Text style={styles.placeDetailName}>{selectedParkingLot.parkingLotNm}</Text>
+                  
+                  {/* 길찾기 버튼들 */}
+                  <View style={styles.routeButtons}>
+                    <TouchableOpacity 
+                      style={styles.routeButton}
+                      onPress={() => {
+                        if (selectedParkingLot && onSetStartLocation && onRoutePress) {
+                          // 출발지 설정
+                          const parkingLocation = {
+                            placeId: `parking_${selectedParkingLot.id}`,
+                            placeName: selectedParkingLot.parkingLotNm,
+                            lat: selectedParkingLot.lat,
+                            lng: selectedParkingLot.lng,
+                            roadAddress: selectedParkingLot.roadAddress,
+                            lotAddress: selectedParkingLot.lotAddress,
+                            phone: selectedParkingLot.phoneNumber,
+                            categoryGroupName: '주차장',
+                            placeUrl: '',
+                            distance: 0,
+                            roadAddressDong: ''
+                          };
+                          onSetStartLocation(parkingLocation);
+                          setShowParkingDetail(false);
+                          onToggle();
+                          onRoutePress();
+                        }
+                      }}
+                    >
+                      <Text style={styles.routeButtonText}>출발</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.routeButton, styles.routeButtonActive]}
+                      onPress={() => {
+                        if (selectedParkingLot && onSetEndLocation && onRoutePress) {
+                          // 목적지 설정
+                          const parkingLocation = {
+                            placeId: `parking_${selectedParkingLot.id}`,
+                            placeName: selectedParkingLot.parkingLotNm,
+                            lat: selectedParkingLot.lat,
+                            lng: selectedParkingLot.lng,
+                            roadAddress: selectedParkingLot.roadAddress,
+                            lotAddress: selectedParkingLot.lotAddress,
+                            phone: selectedParkingLot.phoneNumber,
+                            categoryGroupName: '주차장',
+                            placeUrl: '',
+                            distance: 0,
+                            roadAddressDong: ''
+                          };
+                          onSetEndLocation(parkingLocation);
+                          setShowParkingDetail(false);
+                          onToggle();
+                          onRoutePress();
+                        }
+                      }}
+                    >
+                      <Text style={[styles.routeButtonText, styles.routeButtonTextActive]}>도착</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.shareButton}>
+                      <Ionicons name="share-outline" size={16} color="#333" />
+                      <Text style={styles.shareButtonText}>공유</Text>
+                    </TouchableOpacity>
+                    {selectedParkingLot.phoneNumber && (
+                      <TouchableOpacity style={styles.phoneButton}>
+                        <Ionicons name="call-outline" size={16} color="#333" />
+                        <Text style={styles.phoneButtonText}>전화</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  
+                  {/* 상세 정보 */}
+                  <View style={styles.placeDetailInfoList}>
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>주소</Text>
+                      <Text style={styles.infoValue}>
+                        {selectedParkingLot.roadAddress || selectedParkingLot.lotAddress}
+                      </Text>
+                    </View>
+                    
+                    {selectedParkingLot.phoneNumber && (
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>전화</Text>
+                        <Text style={styles.infoValuePhone}>{selectedParkingLot.phoneNumber}</Text>
+                      </View>
+                    )}
+                    
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>주차 요금</Text>
+                      <Text style={styles.infoValue}>{selectedParkingLot.parkingChargeInfo}</Text>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>결제 방법</Text>
+                      <Text style={styles.infoValue}>{selectedParkingLot.paymentMethod}</Text>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>운영일</Text>
+                      <Text style={styles.infoValue}>{selectedParkingLot.operDay}</Text>
+                    </View>
+                    
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoLabel}>주차 대수</Text>
+                      <Text style={styles.infoValue}>{selectedParkingLot.parkingCapacity}대</Text>
+                    </View>
+                    
+                    {selectedParkingLot.specialComment && (
+                      <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>특이사항</Text>
+                        <Text style={styles.infoValue}>{selectedParkingLot.specialComment}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
           ) : (
             // 검색 결과 표시
             <View style={styles.searchContent}>
             {/* 탭 메뉴 */}
             <View style={styles.tabContainer}>
-              <TouchableOpacity style={[styles.tab, styles.activeTab]}>
-                <Text style={styles.activeTabText}>검색 결과</Text>
+              <TouchableOpacity 
+                style={[styles.tab, activeSearchTab === 'search' && styles.activeTab]}
+                onPress={() => handleTabChange('search')}
+              >
+                <Text style={[styles.tabText, activeSearchTab === 'search' && styles.activeTabText]}>검색 결과</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.tab}>
-                <Text style={styles.tabText}>주변 주차장</Text>
+              <TouchableOpacity 
+                style={[styles.tab, activeSearchTab === 'parking' && styles.activeTab]}
+                onPress={() => {
+                  handleTabChange('parking');
+                  if (parkingLots.length === 0) {
+                    handleParkingSearch();
+                  }
+                }}
+              >
+                <Text style={[styles.tabText, activeSearchTab === 'parking' && styles.activeTabText]}>주변 주차장</Text>
               </TouchableOpacity>
             </View>
             
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <Text style={styles.loadingText}>검색 중...</Text>
-              </View>
-            ) : searchResults && searchResults.length > 0 ? (
-              <ScrollView 
-                style={styles.searchResultsList}
-                showsVerticalScrollIndicator={false}
-              >
-                {searchResults.map((result, index) => (
-                 <TouchableOpacity
-                   key={result.placeId || index}
-                   style={styles.searchResultItem}
-                   onPress={() => {
-                     // 장소 상세 정보 표시
-                     setSelectedPlaceDetail(result);
-                     propSetShowPlaceDetail?.(true);
-                     // 기존 onSelectResult도 호출 (지도 이동 등)
-                     onSelectResult && onSelectResult(result);
-                   }}
-                 >
-                    <View style={styles.searchResultIcon}>
-                      <Ionicons name="location" size={16} color={COLORS.primary} />
-                    </View>
-                    <View style={styles.searchResultContent}>
-                      <Text style={styles.searchResultName} numberOfLines={1}>
-                        {result.placeName}
-                      </Text>
-                      <Text style={styles.searchResultAddress} numberOfLines={1}>
-                        {result.roadAddress || result.lotAddress}
-                      </Text>
-                    </View>
-                    {result.distance && (
+            {activeSearchTab === 'search' ? (
+              // 검색 결과 탭
+              isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>검색 중...</Text>
+                </View>
+              ) : searchResults && searchResults.length > 0 ? (
+                <ScrollView 
+                  style={styles.searchResultsList}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {searchResults.map((result, index) => (
+                   <TouchableOpacity
+                     key={result.placeId || index}
+                     style={styles.searchResultItem}
+                     onPress={() => {
+                       // 장소 상세 정보 표시
+                       setSelectedPlaceDetail(result);
+                       propSetShowPlaceDetail?.(true);
+                       // 기존 onSelectResult도 호출 (지도 이동 등)
+                       onSelectResult && onSelectResult(result);
+                     }}
+                   >
+                      <View style={styles.searchResultIcon}>
+                        <Ionicons name="location" size={16} color={COLORS.primary} />
+                      </View>
+                      <View style={styles.searchResultContent}>
+                        <Text style={styles.searchResultName} numberOfLines={1}>
+                          {result.placeName}
+                        </Text>
+                        <Text style={styles.searchResultAddress} numberOfLines={1}>
+                          {result.roadAddress || result.lotAddress}
+                        </Text>
+                      </View>
+                      {result.distance && (
+                        <Text style={styles.searchResultDistance}>
+                          {result.distance < 1000 
+                            ? `${Math.round(result.distance)}m`
+                            : `${(result.distance / 1000).toFixed(1)}km`
+                          }
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="search" size={24} color="#ccc" />
+                  <Text style={styles.noResultsText}>검색 결과가 없습니다</Text>
+                </View>
+              )
+            ) : (
+              // 주차장 탭
+              parkingLoading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>주차장 검색 중...</Text>
+                </View>
+              ) : parkingError ? (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="alert-circle" size={24} color="#ff6b6b" />
+                  <Text style={styles.noResultsText}>{parkingError}</Text>
+                </View>
+              ) : parkingLots && parkingLots.length > 0 ? (
+                <ScrollView 
+                  style={styles.searchResultsList}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {parkingLots.map((parkingLot, index) => (
+                    <TouchableOpacity
+                      key={parkingLot.id || index}
+                      style={styles.searchResultItem}
+                      onPress={() => handleParkingSelect(parkingLot)}
+                    >
+                      <View style={styles.searchResultIcon}>
+                        <Ionicons name="car" size={16} color={COLORS.purple} />
+                      </View>
+                      <View style={styles.searchResultContent}>
+                        <Text style={styles.searchResultName} numberOfLines={1}>
+                          {parkingLot.parkingLotNm}
+                        </Text>
+                        <Text style={styles.searchResultAddress} numberOfLines={1}>
+                          {parkingLot.roadAddress || parkingLot.lotAddress}
+                        </Text>
+                        <Text style={styles.parkingFeeInfo}>
+                          {parkingLot.parkingChargeInfo}
+                        </Text>
+                      </View>
                       <Text style={styles.searchResultDistance}>
-                        {result.distance < 1000 
-                          ? `${Math.round(result.distance)}m`
-                          : `${(result.distance / 1000).toFixed(1)}km`
+                        {parkingLot.distance < 1000 
+                          ? `${Math.round(parkingLot.distance)}m`
+                          : `${(parkingLot.distance / 1000).toFixed(1)}km`
                         }
                       </Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <View style={styles.noResultsContainer}>
-                <Ionicons name="search" size={24} color="#ccc" />
-                <Text style={styles.noResultsText}>검색 결과가 없습니다</Text>
-              </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.noResultsContainer}>
+                  <Ionicons name="car" size={24} color="#ccc" />
+                  <Text style={styles.noResultsText}>주변 주차장이 없습니다</Text>
+                </View>
+              )
             )}
           </View>
           )
@@ -890,6 +1296,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007bff',
     fontWeight: '600',
+  },
+  // 주차장 관련 스타일
+  parkingFeeInfo: {
+    fontSize: 12,
+    color: COLORS.purple,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  // 뒤로 가기 버튼 스타일
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 4,
+    fontWeight: '500',
   },
 });
 

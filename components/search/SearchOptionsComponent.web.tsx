@@ -27,7 +27,13 @@ const WebSearchOptionsComponent: React.FC<Props> = ({ searchOptions, setSearchOp
                 searchOptions.sort === value && commonStyles.buttonActive,
                 searchOptions.sort === value && platformStyles.buttonActive,
               ]}
-              onPress={() => setSearchOptions({ sort: value })}
+              onPress={() => {
+                if (value === 'accuracy') {
+                  setSearchOptions({ sort: 'accuracy', forceLocationSearch: false });
+                } else {
+                  setSearchOptions({ sort: value as 'distance' | 'accuracy' });
+                }
+              }}
             >
               <Text
                 style={[

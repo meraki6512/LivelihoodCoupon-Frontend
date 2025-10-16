@@ -148,6 +148,15 @@ const WebSharedSearch: React.FC<SharedSearchProps> = ({
   const searchBarRef = useRef<TextInput>(null); // Ref for the SearchBar's TextInput
   const suggestionsContainerRef = useRef<View>(null); // Ref for the suggestions container
 
+  const prevSortOption = useRef(searchOptions.sort);
+
+  useEffect(() => {
+    if (searchSubmitted && prevSortOption.current !== searchOptions.sort) {
+      onSearch();
+    }
+    prevSortOption.current = searchOptions.sort;
+  }, [searchOptions.sort, searchSubmitted, onSearch]);
+
   // Functions to manage recent searches
   const loadRecentSearches = () => {
     if (Platform.OS === 'web') {

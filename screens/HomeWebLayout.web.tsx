@@ -296,7 +296,7 @@ const HomeWebLayout: React.FC<HomeWebLayoutProps> = ({
                 isMenuOpen={isMenuOpen}
                 onMapReady={onMapReady}
               />
-              {showSearchInAreaButton && activeTab === 'search' && (
+              {showSearchInAreaButton && activeTab === 'search' && searchOptions.sort !== 'accuracy' && (
                 <TouchableOpacity
                   style={[
                     webStyles.searchInAreaButton,

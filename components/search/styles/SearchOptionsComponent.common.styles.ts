@@ -2,10 +2,10 @@ import { StyleSheet } from "react-native";
 
 export const commonStyles = StyleSheet.create({
   container: {
-    paddingVertical: 10,
+    paddingVertical: 14,
   },
   optionGroup: {
-    marginBottom: 10,
+    marginBottom: -15,
   },
   label: {
     fontSize: 14,

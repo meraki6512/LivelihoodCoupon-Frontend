@@ -10,4 +10,5 @@ export const webStyles = StyleSheet.create({
   buttonText: {},
   buttonTextActive: {},
   errorText: {},
+
 });

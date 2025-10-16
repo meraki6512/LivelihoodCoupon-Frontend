@@ -32,45 +32,54 @@ export const useCurrentLocation = (): UseCurrentLocationResult => {
      * 현재 위치를 가져오는 비동기 함수
      * 위치 권한을 요청하고 현재 위치를 가져옵니다.
      */
-    const getLocation = async () => {
-      setLoading(true);
-      setError(null); // 에러 초기화
-      
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          setError("위치 접근 권한이 거부되었습니다. 설정에서 위치 권한을 허용해주세요.");
-          setLoading(false);
-          return;
-        }
-
-        // 위치 서비스가 활성화되어 있는지 확인
-        const isLocationEnabled = await Location.hasServicesEnabledAsync();
-        if (!isLocationEnabled) {
-          setError("위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.");
-          setLoading(false);
-          return;
-        }
-
-        const { coords } = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+            const getLocation = async () => {
+              setLoading(true);
+              setError(null); // 에러 초기화
+              
+              try {
+                let { status } = await Location.requestForegroundPermissionsAsync();
+                if (status !== "granted") {
+                  setError("위치 접근 권한이 거부되었습니다. 설정에서 위치 권한을 허용해주세요.");
+                  setLoading(false);
+                  return;
+                }
         
-        setLocation({ latitude: coords.latitude, longitude: coords.longitude });
-      } catch (err: any) {
-        console.error("위치 정보를 가져오는 데 실패했습니다:", err);
-        if (err.code === 'E_LOCATION_SERVICES_DISABLED') {
-          setError("위치 서비스가 비활성화되어 있습니다.");
-        } else if (err.code === 'E_LOCATION_UNAVAILABLE') {
-          setError("위치 정보를 사용할 수 없습니다. 네트워크 연결을 확인해주세요.");
-        } else {
-          setError("위치 정보를 가져오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
+                // 위치 서비스가 활성화되어 있는지 확인
+                const isLocationEnabled = await Location.hasServicesEnabledAsync();
+                if (!isLocationEnabled) {
+                  setError("위치 서비스가 비활성화되어 있습니다. 설정에서 위치 서비스를 켜주세요.");
+                  setLoading(false);
+                  return;
+                }
+        
+                // 1. 마지막으로 알려진 위치를 먼저 시도
+                const lastKnownPosition = await Location.getLastKnownPositionAsync({ maxAge: 300000 }); // 5분 이내의 위치
+                if (lastKnownPosition) {
+                  setLocation({ latitude: lastKnownPosition.coords.latitude, longitude: lastKnownPosition.coords.longitude });
+                  setLoading(false);
+                  // 백그라운드에서 더 정확한 현재 위치를 가져올 수도 있지만, 일단은 마지막 위치로 빠르게 표시
+                  return;
+                }
+        
+                // 2. 마지막으로 알려진 위치가 없거나 너무 오래된 경우, 현재 위치를 가져옴
+                const { coords } = await Location.getCurrentPositionAsync({
+                  accuracy: Location.Accuracy.Balanced,
+                });
+                
+                setLocation({ latitude: coords.latitude, longitude: coords.longitude });
+              } catch (err: any) {
+                console.error("위치 정보를 가져오는 데 실패했습니다:", err);
+                if (err.code === 'E_LOCATION_SERVICES_DISABLED') {
+                  setError("위치 서비스가 비활성화되어 있습니다.");
+                } else if (err.code === 'E_LOCATION_UNAVAILABLE') {
+                  setError("위치 정보를 사용할 수 없습니다. 네트워크 연결을 확인해주세요.");
+                } else {
+                  setError("위치 정보를 가져오는 데 실패했습니다. 잠시 후 다시 시도해주세요.");
+                }
+              } finally {
+                setLoading(false);
+              }
+            };
     getLocation();
   }, []);
 

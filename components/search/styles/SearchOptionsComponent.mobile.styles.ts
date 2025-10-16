@@ -14,4 +14,5 @@ export const mobileStyles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+
 });

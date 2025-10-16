@@ -29,9 +29,9 @@ export const commonStyles = StyleSheet.create({
   },
   tabHeader: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginHorizontal: 0,
     borderBottomWidth: 1,
-    borderBottomColor: '#dee2e6',
+    borderBottomColor: '#F0F0F0',
   },
   tabButton: {
     flex: 1,
@@ -40,20 +40,19 @@ export const commonStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
   },
   activeTabButton: {
-    borderBottomColor: '#007bff',
+    backgroundColor: '#F8FAFE',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   tabButtonText: {
     marginLeft: 6,
     fontSize: 16,
-    color: '#6c757d',
     fontWeight: '500',
   },
   activeTabButtonText: {
-    color: '#007bff',
+    color: '#3690FF',
     fontWeight: '600',
   },
   searchTabContent: {
@@ -70,7 +69,8 @@ export const commonStyles = StyleSheet.create({
   },
   transportModeWrapper: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 30,
   },
   transportModeContainer: {
     flexDirection: 'row',
@@ -79,22 +79,6 @@ export const commonStyles = StyleSheet.create({
     marginTop: -10,
     paddingHorizontal: 16,
     width: '100%',
-  },
-  transportModeButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 4,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    minWidth: 45,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transportModeButtonSelected: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#007bff',
-    borderWidth: 2,
   },
   transportModeButtonDisabled: {
     backgroundColor: '#f5f5f5',
@@ -108,12 +92,12 @@ export const commonStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(248, 250, 254, 0.9)',
     borderWidth: 1,
-    borderColor: '#dee2e6',
+    borderColor: '#B9B9B9',
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   routeInputWrapper: {
     flex: 1,
@@ -130,7 +114,12 @@ export const commonStyles = StyleSheet.create({
   searchIndicator: {
     position: 'absolute',
     right: 8,
-    top: 8,
+    top: 4,
+  },
+  routeInputClearButton: {
+    position: 'absolute',
+    right: 8,
+    top: 4,
   },
   currentLocationButton: {
     padding: 4,
@@ -276,17 +265,70 @@ export const commonStyles = StyleSheet.create({
     elevation: 5,
   },
   suggestionsList: {
-    maxHeight: 200,
+    maxHeight: 205, // Adjusted to fit 5 items + title without scrolling (approx 25px per item + 26px for title)
   },
   suggestionItem: {
-    padding: 10,
+    paddingVertical: 5, // Further reduced vertical padding
+    paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  suggestionsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    paddingVertical: 6, // Further adjusted vertical padding
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  removeRecentSearchButton: {
+    padding: 5,
   },
   closeButton: {
     position: 'absolute',
     top: 5,
     right: 5,
     zIndex: 1,
+  },
+  subTabContainer: {
+    flexDirection: 'row',
+    marginTop: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  subTabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activeSubTabButton: {
+    borderBottomColor: '#3690FF',
+  },
+  subTabButtonText: {
+    fontSize: 16,
+    color: '#B9B9B9',
+  },
+  activeSubTabButtonText: {
+    color: '#3690FF',
+    fontWeight: 'bold',
+  },
+  tabContent: {
+    flex: 1,
+  },
+  parkingLotContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  parkingLotText: {
+    fontSize: 16,
+    color: '#B9B9B9',
   },
 });

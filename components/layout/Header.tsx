@@ -10,6 +10,7 @@ import { mobileStyles } from './styles/Header.mobile.styles';
  */
 const Header: React.FC = () => {
   const styles = Platform.OS === 'web' ? webStyles : mobileStyles;
+  return (<View></View>)
   /*
   return (
     <SafeAreaView style={styles.safeArea}>

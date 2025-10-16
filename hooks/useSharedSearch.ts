@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { SearchResult } from '../types/search';
 import { getAutocompleteSuggestions, searchPlaces } from '../services/searchApi';
 import { useCurrentLocation } from './useCurrentLocation';
@@ -149,21 +149,37 @@ export const useSharedSearch = (externalRouteResult: any, externalIsRouteLoading
     };
   }, []);
 
+
+
   useEffect(() => {
     const handleSetRouteLocation = (type: 'departure' | 'arrival', placeInfo: SearchResult) => {
-      onToggleSidebar();
-      setActiveTab('route');
+      clearRoute();
+      setActiveTab('route'); // Set active tab first
+      onToggleSidebar(); // Then toggle sidebar
+
       if (type === 'departure') {
+        // If new departure is same as current arrival, clear arrival
+        if (endLocationObject && endLocationObject.placeId === placeInfo.placeId) {
+          setEndLocation('');
+          setEndLocationObject(null);
+        }
         setStartLocation(placeInfo.placeName);
         setStartLocationObject(placeInfo);
-      } else {
+      } else { // type === 'arrival'
+        // If new arrival is same as current departure, clear departure
+        if (startLocationObject && startLocationObject.placeId === placeInfo.placeId) {
+          setStartLocation('');
+          setStartLocationObject(null);
+        }
         setEndLocation(placeInfo.placeName);
         setEndLocationObject(placeInfo);
+
         if (!startLocation || startLocation.trim() === '') {
           setStartLocation('내 위치');
           setStartLocationObject(null);
         }
       }
+
       setShowStartResults(false);
       setShowEndResults(false);
     };
@@ -193,7 +209,6 @@ export const useSharedSearch = (externalRouteResult: any, externalIsRouteLoading
     selectedTransportMode,
     setSelectedTransportMode,
     autocompleteSuggestions,
-    setAutocompleteSuggestions,
     showAutocomplete,
     setShowAutocomplete,
     debouncedAutocomplete,

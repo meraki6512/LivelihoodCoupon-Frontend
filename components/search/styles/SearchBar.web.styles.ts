@@ -8,12 +8,13 @@ export const webStyles = StyleSheet.create({
   searchInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#dee2e6',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginRight: 8,
     backgroundColor: '#fff',
+    color: '#333',
     fontSize: 16,
   },
   searchButton: {
@@ -27,5 +28,11 @@ export const webStyles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  clearButton: {
+    position: 'absolute',
+    right: 70,
+    top: 2,
+    padding: 5,
   },
 });

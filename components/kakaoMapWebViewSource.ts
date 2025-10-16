@@ -265,7 +265,7 @@ function updateMapCenter(lat, lng) {
               bottom: 15px;
               right: 13px;
             ">
-              <button onclick="selectRouteLocation('\${markerData.placeId}', '\${markerData.placeName}')" style="
+              <button onclick="selectRouteLocation('\${markerData.placeId}', '\${markerData.placeName}', \${markerData.lat}, \${markerData.lng})")" style="
                 background-color: #007bff;
                 color: white;
                 border: none;
@@ -305,11 +305,13 @@ function updateMapCenter(lat, lng) {
         };
 
         // 길찾기 함수
-        window.selectRouteLocation = function(placeId, placeName) {
+        window.selectRouteLocation = function(placeId, placeName, lat, lng) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'route_selected',
             placeId: placeId,
-            placeName: placeName
+            placeName: placeName,
+            latitude: lat,
+            longitude: lng
           }));
           closeInfoWindow();
         };

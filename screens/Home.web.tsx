@@ -195,7 +195,7 @@ export default function Home() {
   useEffect(() => {
     if (pagination && pagination.currentPage === 1 && !pagination.isLast && !loadingAllMarkers) {
       if (mapCenter && location) {
-        fetchAllMarkers(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
+          fetchAllMarkers(location.latitude, location.longitude);
       }
     }
   }, [pagination?.currentPage]);
@@ -247,7 +247,7 @@ export default function Home() {
   }, [isMenuOpen, prevIsMenuOpen, showInfoWindow, routeResult, location]);
 
 
-  const handleSearch = useCallback(async (query?: string) => {
+    const handleSearch = useCallback(async (query?: string, useCache: boolean = true) => {
     Keyboard.dismiss();
     setShowSearchInAreaButton(false);
     setActiveSearchTab('searchResults'); // 검색 시 항상 검색 결과 탭으로 초기화
@@ -270,7 +270,7 @@ export default function Home() {
       searchLng = newCoords.lng;
     }
 
-    await performSearch(searchLat, searchLng, location.latitude, location.longitude, undefined, query);
+    await performSearch(searchLat, searchLng, location.latitude, location.longitude, undefined, query, useCache);
 
     setBottomSheetOpen(true);
   }, [mapCenter, location, performSearch, isMenuOpen]);
@@ -289,7 +289,7 @@ export default function Home() {
       searchLng = newCoords.lng;
     }
 
-    await performSearch(searchLat, searchLng, location.latitude, location.longitude, true);
+      await performSearch(searchLat, searchLng, location.latitude, location.longitude, true, undefined, false);
   }, [mapCenter, location, performSearch, isMenuOpen]);
 
   const handleMapIdle = useCallback((lat: number, lng: number) => {
@@ -301,7 +301,7 @@ export default function Home() {
 
   const handleNextPage = useCallback(async () => {
     if (!mapCenter || !location) return;
-    await fetchNextPage(mapCenter.latitude, mapCenter.longitude, location.latitude, location.longitude);
+      await fetchNextPage(location.latitude, location.longitude);
   }, [mapCenter, location, fetchNextPage]);
 
   const handleSelectResult = useCallback((item: SearchResult) => {
@@ -402,7 +402,7 @@ export default function Home() {
 
   const handleCategorySearch = useCallback((categoryName: string) => {
     setSearchQuery(categoryName);
-    handleSearch(categoryName);
+      handleSearch(categoryName, false);
   }, [setSearchQuery, handleSearch]);
 
   if (Platform.OS === 'web') {

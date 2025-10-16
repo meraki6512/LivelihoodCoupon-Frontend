@@ -25,7 +25,7 @@ interface SharedSearchProps {
   isWebView: boolean;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onSearch: (query?: string) => void;
+  onSearch: (query?: string, useCache?: boolean) => void;
   onClearSearch: () => void; // New prop
   searchResults: SearchResult[];
   allMarkers: SearchResult[];
@@ -369,7 +369,7 @@ const WebSharedSearch: React.FC<SharedSearchProps> = ({
               setSearchSubmitted(false);
             }}
             onSearch={() => {
-              onSearch();
+              onSearch(searchQuery, false);
               setShowAutocomplete(false);
               setSearchSubmitted(true);
               if (searchQuery.trim().length > 0) {
@@ -407,7 +407,7 @@ const WebSharedSearch: React.FC<SharedSearchProps> = ({
                             style={commonStyles.suggestionItem}
                             onPress={() => {
                                 setSearchQuery(item);
-                                onSearch(item);
+                                onSearch(item, false);
                                 addRecentSearch(item);
                                 setHasPerformedSearch(true);
                                 setShowAutocomplete(false);

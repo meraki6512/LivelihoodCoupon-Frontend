@@ -184,17 +184,18 @@ export const useSearch = () => {
     dispatch({ type: 'SET_SEARCH_OPTIONS', payload: options });
   };
 
-  const performSearch = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number, overrideForceLocationSearch?: boolean, query?: string) => {
+  const performSearch = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number, overrideForceLocationSearch?: boolean, query?: string, useCache: boolean = true) => {
     const searchQuery = query ?? state.searchQuery;
     if (!searchQuery.trim()) {
       alert("검색어를 입력해주세요.");
       return;
     }
-
+    if (useCache) {
     const cached = state.currentSearchCache[state.searchOptions.sort];
     if (cached) {
       dispatch({ type: 'SET_CACHED_RESULTS', payload: cached });
       return;
+    }
     }
 
     dispatch({ type: 'START_SEARCH' });
@@ -217,80 +218,67 @@ export const useSearch = () => {
         );
       };
 
-      // "정확도순" 검색 시 반경을 1000km로 고정
-      if (state.searchOptions.sort === 'accuracy') {
-        const finalSearchData = await search(1000);
+      let finalSearchData: (PageResponse<SearchResult> & { requestLat: number; requestLng: number; forceLocationSearch: boolean }) | null = null;
+      let effectiveRadiusForSearch = state.searchOptions.radius; // Keep track of the radius that yielded results
+
+      const radiiToTry = state.searchOptions.sort === 'accuracy' ? [1000] : [1, 10, 50, 100, 1000];
+
+      for (const r of radiiToTry) {
+        const currentSearchRadius = state.searchOptions.sort === 'accuracy' ? 1000 : r;
+        const searchResult = await search(currentSearchRadius);
+        if (searchResult.content.length > 0) {
+          finalSearchData = { ...searchResult, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false };
+          effectiveRadiusForSearch = currentSearchRadius; // Store the radius that found results
+          break;
+        }
+      }
+
+      if (!finalSearchData) {
+        // If no results found even after trying all radii, perform a final search with 1000km
+        // This also covers the case where 'accuracy' sort found no results in its single 1000km attempt
+        const searchResult = await search(1000);
+        finalSearchData = { ...searchResult, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false };
+        effectiveRadiusForSearch = 1000;
         if (finalSearchData.content.length === 0) {
           alert("검색 결과가 없습니다.");
         }
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
-        return;
       }
 
-      let finalSearchData = null;
-
-      // 1. Try 1km
-      finalSearchData = await search(1);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
-        return;
-      }
-
-      // 2. Try 10km
-      finalSearchData = await search(10);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
-        return;
-      }
-
-      // 2.5. Try 50km
-      finalSearchData = await search(50);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
-        return;
-      }
-
-      // 3. Try 100km
-      finalSearchData = await search(100);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
-        return;
-      }
-
-      // 4. No results up to 100km, try 1000km automatically
-      finalSearchData = await search(1000);
-      if (finalSearchData.content.length === 0) {
-        alert("검색 결과가 없습니다.");
-      }
-      dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: effectiveForceLocationSearch || false } });
+      // Update searchOptions with the effective radius that found results
+      // This is crucial for fetchNextPage to use the correct radius
+      dispatch({ type: 'SET_SEARCH_OPTIONS', payload: { radius: effectiveRadiusForSearch } });
+      dispatch({ type: 'SEARCH_SUCCESS', payload: finalSearchData });
 
     } catch (err: any) {
       dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "검색 중 오류가 발생했습니다." });
     }
   }, [state.searchQuery, state.searchOptions, state.currentSearchCache]);
 
-        const fetchNextPage = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
+    const fetchNextPage = useCallback(async (userLatitude: number, userLongitude: number) => {
           const listPageLimit = Number(EXPO_PUBLIC_SEARCH_LIST_PAGE_LIMIT) || 10;
-          if (state.loadingNextPage || !state.pagination || state.pagination.isLast || state.pagination.currentPage >= listPageLimit) return;
-          dispatch({ type: 'START_NEXT_PAGE' });
+        if (state.loadingNextPage || !state.pagination || state.pagination.isLast || !state.searchCenter || state.pagination.currentPage >= listPageLimit) return;
+        dispatch({ type: 'START_NEXT_PAGE' });
           try {
             const nextPage = state.pagination.currentPage + 1;
-            const resultsData = await searchPlaces(state.searchQuery, latitude, longitude, state.searchOptions.radius, state.searchOptions.sort, nextPage, userLatitude, userLongitude, state.searchOptions.forceLocationSearch);
+              const { lat, lng } = state.searchCenter;
+              const resultsData = await searchPlaces(state.searchQuery, lat, lng, state.searchOptions.radius, state.searchOptions.sort, nextPage, userLatitude, userLongitude, state.searchOptions.forceLocationSearch);
             dispatch({ type: 'NEXT_PAGE_SUCCESS', payload: resultsData });
           } catch (err: any) {
             console.error("다음 페이지 로딩 중 오류:", err);
             dispatch({ type: 'SEARCH_FAILURE', payload: err.message || "다음 페이지 로딩 중 오류가 발생했습니다." });
           }
-        }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions]);
+    }, [state.pagination, state.loadingNextPage, state.searchQuery, state.searchOptions, state.searchCenter]);
 
-        const fetchAllMarkers = useCallback(async (latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
-          if (!state.pagination || state.loadingAllMarkers || state.pagination.isLast) {
+    const fetchAllMarkers = useCallback(async (userLatitude: number, userLongitude: number) => {
+          if (!state.pagination || state.loadingAllMarkers || state.pagination.isLast || !state.searchCenter) {
             return;
           }
 
+        const { lat, lng } = state.searchCenter;
+
           const markerPageLimit = Number(EXPO_PUBLIC_SEARCH_MARKER_PAGE_LIMIT) || 10;
-          const markerTotalLimit = Number(EXPO_PUBLIC_SEARCH_MARKER_TOTAL_LIMIT) || 100;
-          const startPage = state.pagination.currentPage + 1;
+        const markerTotalLimit = Number(EXPO_PUBLIC_SEARCH_MARKER_TOTAL_LIMIT) || 1000;
+        const startPage = state.pagination.currentPage + 1;
           let allNewMarkers: SearchResult[] = [];
           let limitReached = false;
     try {
@@ -300,8 +288,8 @@ export const useSearch = () => {
         try {
           const pageData = await searchPlaces(
             state.searchQuery,
-            latitude,
-            longitude,
+            lat,
+            lng,
             state.searchOptions.radius,
             state.searchOptions.sort,
             pageNum,
@@ -336,7 +324,7 @@ export const useSearch = () => {
       console.error("Error fetching all markers:", error);
       dispatch({ type: 'FINISH_ALL_MARKERS_LOAD', payload: { limitReached: true } });
     }
-  }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers]);
+    }, [state.pagination, state.searchQuery, state.searchOptions, state.loadingAllMarkers, state.searchCenter]);
 
   const performSearchWithQuery = useCallback(async (query: string, latitude: number, longitude: number, userLatitude: number, userLongitude: number) => {
     if (!query.trim()) {
@@ -363,45 +351,35 @@ export const useSearch = () => {
         );
       };
 
-      if (state.searchOptions.sort === 'accuracy') {
-        const finalSearchData = await search(1000);
+      let finalSearchData: (PageResponse<SearchResult> & { requestLat: number; requestLng: number; forceLocationSearch: boolean }) | null = null;
+      let effectiveRadiusForSearch = state.searchOptions.radius; // Keep track of the radius that yielded results
+
+      const radiiToTry = state.searchOptions.sort === 'accuracy' ? [1000] : [1, 10, 50, 100, 1000];
+
+      for (const r of radiiToTry) {
+        const currentSearchRadius = state.searchOptions.sort === 'accuracy' ? 1000 : r;
+        const searchResult = await search(currentSearchRadius);
+        if (searchResult.content.length > 0) {
+          finalSearchData = { ...searchResult, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false };
+          effectiveRadiusForSearch = currentSearchRadius; // Store the radius that found results
+          break;
+        }
+      }
+
+      if (!finalSearchData) {
+        // If no results found even after trying all radii, perform a final search with 1000km
+        const searchResult = await search(1000);
+        finalSearchData = { ...searchResult, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false };
+        effectiveRadiusForSearch = 1000;
         if (finalSearchData.content.length === 0) {
           alert("검색 결과가 없습니다.");
         }
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
-        return;
       }
 
-      let finalSearchData;
-      finalSearchData = await search(1);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
-        return;
-      }
-
-      finalSearchData = await search(10);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
-        return;
-      }
-
-      finalSearchData = await search(50);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
-        return;
-      }
-
-      finalSearchData = await search(100);
-      if (finalSearchData.content.length > 0) {
-        dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
-        return;
-      }
-
-      finalSearchData = await search(1000);
-      if (finalSearchData.content.length === 0) {
-        alert("검색 결과가 없습니다.");
-      }
-      dispatch({ type: 'SEARCH_SUCCESS', payload: { ...finalSearchData, requestLat: latitude, requestLng: longitude, forceLocationSearch: state.searchOptions.forceLocationSearch || false } });
+      // Update searchOptions with the effective radius that found results
+      // This is crucial for fetchNextPage to use the correct radius
+      dispatch({ type: 'SET_SEARCH_OPTIONS', payload: { radius: effectiveRadiusForSearch } });
+      dispatch({ type: 'SEARCH_SUCCESS', payload: finalSearchData });
 
     } catch (err: any) {
       console.error('Search error:', err);

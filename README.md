@@ -1,5 +1,6 @@
 # Livelihood Coupon Frontend
 - [Livelihood Coupon Backend 바로가기](https://github.com/livelihoodCoupon/Server-Backend)
+- [Demo ▶️ Youtube 바로가기](https://youtu.be/VIBkQQZsk20?si=UZKAkuEXRRWQ3hej)
 
 > **민생회복쿠폰 지도 서비스의 프론트엔드** 레포지토리입니다. </br>
 > React Native와 Expo를 기반으로 웹, iOS, Android 플랫폼을 지원합니다.
